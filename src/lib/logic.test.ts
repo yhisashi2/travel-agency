@@ -106,3 +106,20 @@ describe('schema', () => {
     expect(() => parseTrip({ id: 'x', title: 'T', startDate: '2026-01-01', endDate: '2026-01-01', days: [{ date: '2026-01-01', items: [{ id: 'a', title: 'A', time: '9:00' }] }] })).toThrow();
   });
 });
+
+describe('transport modes', () => {
+  it('accepts bike and ferry and maps them for navigation', async () => {
+    const { googleMapsDirections } = await import('./navigation');
+    const t = parseTrip({
+      id: 'x', title: 'T', startDate: '2026-01-01', endDate: '2026-01-01',
+      days: [{ date: '2026-01-01', items: [{ id: 'a', title: 'A', lat: 1, lng: 2, transportToNext: 'bike' }, { id: 'b', title: 'B', transportToNext: 'ferry' }] }],
+    });
+    expect(t.days[0].items.map((s) => s.transportToNext)).toEqual(['bike', 'ferry']);
+    expect(googleMapsDirections(t.days[0].items[0], 'bike')).toContain('travelmode=driving');
+  });
+  it('draws ferry legs as straight lines without calling a router', async () => {
+    const { routeLine } = await import('./routing');
+    const r = await routeLine([33, 131], [33.1, 131.1], 'ferry');
+    expect(r).toEqual({ line: [[33, 131], [33.1, 131.1]], routed: false });
+  });
+});

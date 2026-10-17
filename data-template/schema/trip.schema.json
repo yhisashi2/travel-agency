@@ -36,7 +36,7 @@
         },
         "updatedAt": {
           "type": "string",
-          "default": "2026-10-17T12:19:30.574Z"
+          "default": "2026-10-17T12:54:23.100Z"
         },
         "days": {
           "type": "array",
@@ -100,8 +100,10 @@
                       "enum": [
                         "walk",
                         "car",
+                        "bike",
                         "train",
                         "bus",
+                        "ferry",
                         "flight"
                       ]
                     },
@@ -193,8 +195,10 @@
                 "enum": [
                   "walk",
                   "car",
+                  "bike",
                   "train",
                   "bus",
+                  "ferry",
                   "flight"
                 ]
               },

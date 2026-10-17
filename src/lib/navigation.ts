@@ -3,8 +3,11 @@ import type { Spot, Transport } from '../types/trip';
 const MODE: Record<Transport, string> = {
   walk: 'walking',
   car: 'driving',
+  // Google マップの URL API には二輪モードが無いため車ルートで代用
+  bike: 'driving',
   bus: 'transit',
   train: 'transit',
+  ferry: 'driving',
   flight: 'driving',
 };
 

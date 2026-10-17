@@ -16,12 +16,14 @@ export const CATEGORY_ICON: Record<Category, string> = {
   other: '📌',
 };
 
-export const TRANSPORTS = ['walk', 'car', 'train', 'bus', 'flight'] as const;
+export const TRANSPORTS = ['walk', 'car', 'bike', 'train', 'bus', 'ferry', 'flight'] as const;
 export const TRANSPORT_LABEL: Record<Transport, string> = {
   walk: '徒歩',
   car: '車',
+  bike: 'バイク',
   train: '電車',
   bus: 'バス',
+  ferry: 'フェリー',
   flight: '飛行機',
 };
 

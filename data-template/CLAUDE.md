@@ -13,7 +13,7 @@
 - `category`: `sightseeing` | `food` | `lodging` | `transport` | `other`
 - `time` / `endTime`: `HH:MM`（24 時間、ゼロ埋め）。items は時刻順に並べる
 - `lat` / `lng`: 地図とルートに必要。分かる場合は必ず入れる（小数 4〜6 桁）
-- `transportToNext`: 次の予定への移動手段 `walk` | `car` | `train` | `bus` | `flight`
+- `transportToNext`: 次の予定への移動手段 `walk` | `car` | `bike`（バイク） | `train` | `bus` | `ferry`（フェリー） | `flight`。フェリーに乗る港の Spot には `ferry` を入れる
 - `cost` は数値、`currency` は ISO 4217（省略時は `baseCurrency`）。外貨は `rates` に「1 単位 = 何 baseCurrency」を入れる
 - `done`: 旅行中にアプリで付ける完了フラグ。理由なく変更しない
 - `updatedAt` は編集したら現在時刻（ISO 8601）に更新

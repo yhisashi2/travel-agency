@@ -6,7 +6,8 @@ type LatLng = [number, number];
 const cache = new Map<string, LatLng[]>();
 
 export async function routeLine(a: LatLng, b: LatLng, mode: Transport | undefined): Promise<{ line: LatLng[]; routed: boolean }> {
-  const profile = mode === 'walk' ? 'foot' : mode === 'car' || mode === 'bus' ? 'driving' : null;
+  // バイク・バスは車道ルート、電車・フェリー・飛行機は直線（点線）で表示
+  const profile = mode === 'walk' ? 'foot' : mode === 'car' || mode === 'bike' || mode === 'bus' ? 'driving' : null;
   if (!profile) return { line: [a, b], routed: false };
   const k = `${profile}:${a.join(',')}:${b.join(',')}`;
   const hit = cache.get(k);
