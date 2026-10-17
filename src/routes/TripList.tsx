@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import SyncBadge from '../components/SyncBadge';
+import { loadClaudeLink } from '../lib/claudeLink';
+import { loadSettings } from '../lib/github';
 import { navigate } from '../lib/router';
-import { importTrip, saveTrip, useStore } from '../lib/store';
+import { deleteTrip, importTrip, saveTrip, useStore } from '../lib/store';
 import { createTrip, formatDate, todayLocal } from '../lib/tripOps';
 import { sampleTrip } from '../sample';
 
@@ -45,7 +47,7 @@ export default function TripList() {
             const ongoing = t.startDate <= today && today <= t.endDate;
             const count = t.days.reduce((n, d) => n + d.items.length, 0);
             return (
-              <li key={t.id}>
+              <li key={t.id} className="trip-row">
                 <button className="trip-card" onClick={() => navigate('trip', t.id)}>
                   <div className="trip-card-title">
                     {t.title} {ongoing && <span className="pill">旅行中</span>}
@@ -54,10 +56,30 @@ export default function TripList() {
                     {formatDate(t.startDate)} 〜 {formatDate(t.endDate)}・{t.days.length}日間・{count}件の予定
                   </div>
                 </button>
+                <button
+                  className="trip-delete"
+                  aria-label={`「${t.title}」を削除`}
+                  onClick={() => {
+                    const gh = loadSettings();
+                    if (!confirm(`「${t.title}」を削除しますか？${gh ? '\nGitHub 上のファイルも削除されます。' : ''}\nこの操作は元に戻せません。`)) return;
+                    void deleteTrip(t.id);
+                  }}
+                >
+                  🗑
+                </button>
               </li>
             );
           })}
         </ul>
+
+        <a className="claude-link" href={loadClaudeLink()} target="_blank" rel="noreferrer">
+          <span className="claude-link-icon">✳️</span>
+          <span className="grow">
+            <strong>Claude Code でプランを相談・編集</strong>
+            <span className="muted small">travel-agency-data のセッションを開く</span>
+          </span>
+          <span className="muted">↗</span>
+        </a>
 
         {creating ? (
           <NewTripForm onDone={() => setCreating(false)} />

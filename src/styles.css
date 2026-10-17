@@ -212,3 +212,12 @@ div.place-card { cursor: default; display: flex; }
 .rating-sheet h3 { font-size: 17px; margin: 4px 0 14px; }
 .rating-buttons { display: flex; flex-direction: column; gap: 8px; }
 .rating-buttons .btn { justify-content: flex-start; }
+
+/* トップ: 削除ボタンと Claude Code リンク */
+.trip-row { display: flex; gap: 8px; align-items: stretch; }
+.trip-row .trip-card { flex: 1; min-width: 0; }
+.trip-delete { flex-shrink: 0; width: 48px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 18px; cursor: pointer; }
+.trip-delete:active { background: var(--warn-soft); }
+.claude-link { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); text-decoration: none; }
+.claude-link .grow { display: flex; flex-direction: column; gap: 2px; }
+.claude-link-icon { font-size: 22px; }

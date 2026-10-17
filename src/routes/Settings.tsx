@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import SyncBadge from '../components/SyncBadge';
+import { DEFAULT_CLAUDE_LINK, loadClaudeLink, saveClaudeLink } from '../lib/claudeLink';
 import { GitHubClient, loadSettings, saveSettings, type GitHubSettings } from '../lib/github';
 import { navigate } from '../lib/router';
 import { getState, syncAll, useStore } from '../lib/store';
@@ -9,6 +10,7 @@ export default function Settings() {
   const [s, setS] = useState<GitHubSettings>(current ?? { owner: '', repo: 'travel-agency-data', branch: 'main', token: '', dir: 'trips' });
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [claudeLink, setClaudeLink] = useState(loadClaudeLink);
   const lastSync = useStore((st) => st.lastSync);
   const error = useStore((st) => st.error);
   const set = (k: keyof GitHubSettings, v: string) => setS((x) => ({ ...x, [k]: v.trim() }));
@@ -103,6 +105,24 @@ export default function Settings() {
             </button>
           </div>
         )}
+
+        <div className="card form">
+          <h3>Claude Code のリンク</h3>
+          <p className="muted small">トップ画面の「Claude Code でプランを相談・編集」から開くセッションの URL です。</p>
+          <input type="url" value={claudeLink} onChange={(e) => setClaudeLink(e.target.value)} onBlur={() => saveClaudeLink(claudeLink)} />
+          {claudeLink !== DEFAULT_CLAUDE_LINK && (
+            <button
+              className="link small"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => {
+                setClaudeLink(DEFAULT_CLAUDE_LINK);
+                saveClaudeLink(DEFAULT_CLAUDE_LINK);
+              }}
+            >
+              既定に戻す
+            </button>
+          )}
+        </div>
 
         <div className="card">
           <h3>スマホでアプリとして使う</h3>
