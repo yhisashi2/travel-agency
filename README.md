@@ -53,7 +53,7 @@ npm run build
 ```
 
 - `npm run schema` … `src/types/trip.ts`（zod）から `data-template/schema/trip.schema.json` とサンプルを再生成
-- `node scripts/gen-icons.mjs` … PWA アイコンの再生成
+- アイコンの元絵は `public/icon.svg`（PNG は正方形背景・縮小版をここから書き出したもの）
 
 ### 構成
 | パス | 内容 |

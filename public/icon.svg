@@ -1,1 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#0f766e"/><path d="M256 96c-62 0-112 50-112 112 0 84 112 208 112 208s112-124 112-208c0-62-50-112-112-112zm0 152a40 40 0 1 1 0-80 40 40 0 0 1 0 80z" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f766e"/>
+  <!-- ルート（点線）と目的地のピン -->
+  <path d="M64 440 C 150 470, 170 400, 240 420 S 420 440, 446 380" fill="none" stroke="#5eead4" stroke-width="14" stroke-linecap="round" stroke-dasharray="1 30"/>
+  <path d="M376 56c-30 0-54 24-54 54 0 40 54 92 54 92s54-52 54-92c0-30-24-54-54-54z" fill="#fbbf24"/>
+  <circle cx="376" cy="110" r="19" fill="#0f766e"/>
+  <!-- バイク -->
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="140" cy="322" r="52" stroke-width="22"/>
+    <circle cx="364" cy="322" r="52" stroke-width="22"/>
+    <path d="M140 322 L216 300" stroke-width="18"/>
+    <path d="M364 322 L326 228" stroke-width="18"/>
+    <path d="M318 214 L300 190 M290 190 L316 190" stroke-width="14"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="140" cy="322" r="12"/>
+    <circle cx="364" cy="322" r="12"/>
+    <!-- シート・タンク・エンジン -->
+    <path d="M96 238 H208 Q222 238 230 228 Q252 202 300 208 L330 216 L336 244 L298 254 L284 314 Q282 322 274 322 H226 Q218 322 214 314 L196 270 H120 Q100 270 96 254 Z"/>
+    <!-- ヘッドライト -->
+    <circle cx="346" cy="246" r="14"/>
+  </g>
+  <path d="M120 290 L196 296" stroke="#fff" stroke-width="12" stroke-linecap="round"/>
+</svg>
