@@ -2,7 +2,7 @@ import L from 'leaflet';
 
 /** 番号付きピン（Leaflet 標準アイコンはバンドラで画像パスが壊れるため divIcon を使う） */
 export function numberIcon(label: string | number, opts: { done?: boolean; active?: boolean; color?: string } = {}) {
-  const cls = ['num-pin', opts.done ? 'done' : '', opts.active ? 'active' : ''].join(' ');
+  const cls = ['num-pin', opts.done ? 'done' : '', opts.active ? 'active' : '', String(label).length > 2 ? 'long' : ''].join(' ');
   return L.divIcon({
     className: '',
     html: `<div class="${cls}" style="${opts.color ? `background:${opts.color}` : ''}"><span>${label}</span></div>`,

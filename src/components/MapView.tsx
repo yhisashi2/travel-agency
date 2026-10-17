@@ -3,34 +3,97 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { googleMapsDirections } from '../lib/navigation';
 import { routeLine } from '../lib/routing';
-import { IDEAS, distanceMeters, formatDate, formatDistance, spotsWithLocation, upsertSpot } from '../lib/tripOps';
-import { CATEGORY_ICON, type Spot, type Trip } from '../types/trip';
+import { IDEAS, distanceMeters, formatDate, formatDistance, spotsWithLocation, todayLocal, upsertSpot } from '../lib/tripOps';
+import { CATEGORY_ICON, type Spot, type Transport, type Trip } from '../types/trip';
 import { TILE_ATTR, TILE_URL, meIcon, numberIcon } from './mapIcons';
 import type { EditTarget } from './SpotEditor';
 
-const DAY_COLORS = ['#0f766e', '#2563eb', '#c2410c', '#7c3aed', '#be123c', '#4d7c0f', '#0369a1'];
+const DAY_COLORS = ['#0f766e', '#2563eb', '#c2410c', '#7c3aed', '#be123c', '#4d7c0f', '#0369a1', '#a16207'];
+const dayColor = (index: number) => DAY_COLORS[index % DAY_COLORS.length];
 
 interface Props {
   trip: Trip;
-  date: string;
-  onDateChange: (d: string) => void;
+  /** 表示する日（複数可） */
+  dates: string[];
+  onDatesChange: (d: string[]) => void;
   onEdit: (t: EditTarget) => void;
   onChange: (t: Trip) => void;
 }
 
 type LatLng = [number, number];
+type Located = Spot & { lat: number; lng: number };
+interface MapSpot {
+  spot: Located;
+  date: string;
+  dayIndex: number;
+  /** その日の中での番号（1 始まり） */
+  order: number;
+  prevMode?: Transport;
+}
+interface Leg {
+  key: string;
+  from: LatLng;
+  to: LatLng;
+  mode?: Transport;
+  color: string;
+}
 
-export default function MapView({ trip, date, onDateChange, onEdit, onChange }: Props) {
+const legKey = (l: Leg) => `${l.from}|${l.to}|${l.mode ?? ''}`;
+
+export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }: Props) {
   const [showIdeas, setShowIdeas] = useState(false);
   const [me, setMe] = useState<{ lat: number; lng: number; acc: number } | null>(null);
   const [tracking, setTracking] = useState(false);
   const [geoErr, setGeoErr] = useState<string | null>(null);
+  const today = todayLocal();
 
-  const dayIndex = trip.days.findIndex((d) => d.date === date);
-  const day = trip.days[dayIndex];
-  const color = DAY_COLORS[dayIndex % DAY_COLORS.length];
-  const spots = useMemo(() => spotsWithLocation(day?.items ?? []), [day]);
+  const selected = useMemo(() => new Set(dates), [dates]);
+  const multi = selected.size > 1;
+  const allSelected = trip.days.every((d) => selected.has(d.date));
+
+  // 選択した日の地点（日付順）と区間。連続して選択した日は前日の最後と翌日の最初もつなぐ
+  const { spots, legs } = useMemo(() => {
+    const spots: MapSpot[] = [];
+    const legs: Leg[] = [];
+    let prev: { spot: Located; dayIndex: number } | null = null;
+    trip.days.forEach((d, dayIndex) => {
+      if (!selected.has(d.date)) {
+        prev = null;
+        return;
+      }
+      spotsWithLocation(d.items).forEach((spot, i) => {
+        if (prev) {
+          legs.push({
+            key: `${prev.spot.id}>${spot.id}`,
+            from: [prev.spot.lat, prev.spot.lng],
+            to: [spot.lat, spot.lng],
+            mode: prev.spot.transportToNext,
+            color: dayColor(prev.dayIndex),
+          });
+        }
+        spots.push({ spot, date: d.date, dayIndex, order: i + 1, prevMode: prev?.spot.transportToNext });
+        prev = { spot, dayIndex };
+      });
+    });
+    return { spots, legs };
+  }, [trip.days, selected]);
+
   const ideas = useMemo(() => (showIdeas ? spotsWithLocation(trip.ideas) : []), [showIdeas, trip.ideas]);
+
+  const toggleDay = (date: string) => {
+    if (selected.has(date)) {
+      if (selected.size > 1) onDatesChange(dates.filter((d) => d !== date));
+    } else {
+      onDatesChange(trip.days.map((d) => d.date).filter((d) => d === date || selected.has(d)));
+    }
+  };
+  const toggleAll = () => {
+    if (allSelected) {
+      onDatesChange([trip.days.find((d) => d.date === today)?.date ?? trip.days[0].date]);
+    } else {
+      onDatesChange(trip.days.map((d) => d.date));
+    }
+  };
 
   // 現在地の追跡
   useEffect(() => {
@@ -50,21 +113,16 @@ export default function MapView({ trip, date, onDateChange, onEdit, onChange }: 
     return () => navigator.geolocation.clearWatch(id);
   }, [tracking]);
 
-  // ルート線（区間ごとに取得）
-  const [legs, setLegs] = useState<{ line: LatLng[]; routed: boolean }[]>([]);
-  const legSig = JSON.stringify(spots.map((s) => [s.lat, s.lng, s.transportToNext]));
+  // ルート線（区間ごとに取得。取得までは点線の直線で表示）
+  const [routed, setRouted] = useState<Record<string, { line: LatLng[]; routed: boolean }>>({});
+  const legSig = legs.map(legKey).join(';');
   useEffect(() => {
     let cancelled = false;
-    const straight = spots.slice(0, -1).map((s, i) => ({ line: [[s.lat, s.lng], [spots[i + 1].lat, spots[i + 1].lng]] as LatLng[], routed: false }));
-    setLegs(straight);
     (async () => {
-      const out = [...straight];
-      for (let i = 0; i < spots.length - 1; i++) {
-        const a = spots[i];
-        const b = spots[i + 1];
-        out[i] = await routeLine([a.lat, a.lng], [b.lat, b.lng], a.transportToNext);
+      for (const l of legs) {
+        const r = await routeLine(l.from, l.to, l.mode);
         if (cancelled) return;
-        setLegs([...out]);
+        setRouted((m) => ({ ...m, [legKey(l)]: r }));
       }
     })();
     return () => {
@@ -72,11 +130,15 @@ export default function MapView({ trip, date, onDateChange, onEdit, onChange }: 
     };
   }, [legSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const next = spots.find((s) => !s.done);
-  const nextDist = me && next ? distanceMeters(me, next) : null;
+  // 次の予定: 今日を表示中なら今日の未完了、そうでなければ表示範囲の最初の未完了
+  const next = selected.has(today)
+    ? spots.find((s) => s.date === today && !s.spot.done)
+    : spots.find((s) => !s.spot.done);
+  const nextDist = me && next ? distanceMeters(me, next.spot) : null;
+  const addDate = selected.has(today) ? today : (trip.days.find((d) => selected.has(d.date))?.date ?? IDEAS);
 
   const bounds = useMemo(() => {
-    const pts: LatLng[] = [...spots, ...ideas].map((s) => [s.lat, s.lng]);
+    const pts: LatLng[] = [...spots.map((s) => s.spot), ...ideas].map((s) => [s.lat, s.lng]);
     return pts.length ? L.latLngBounds(pts) : null;
   }, [spots, ideas]);
 
@@ -87,13 +149,27 @@ export default function MapView({ trip, date, onDateChange, onEdit, onChange }: 
 
   return (
     <div className="map-wrap">
-      <div className="day-chips">
-        {trip.days.map((d, i) => (
-          <button key={d.date} className={`chip ${d.date === date ? 'on' : ''}`} onClick={() => onDateChange(d.date)}>
-            Day{i + 1} {formatDate(d.date)}
-          </button>
-        ))}
-        <button className={`chip ${showIdeas ? 'on' : ''}`} onClick={() => setShowIdeas((v) => !v)}>
+      <div className="day-chips" role="group" aria-label="表示する日">
+        <button className={`chip sm ${allSelected ? 'on' : ''}`} aria-pressed={allSelected} onClick={toggleAll}>
+          全日程
+        </button>
+        {trip.days.map((d, i) => {
+          const on = selected.has(d.date);
+          return (
+            <button
+              key={d.date}
+              className={`chip sm ${on ? 'on' : ''}`}
+              style={on ? { background: dayColor(i), borderColor: dayColor(i) } : undefined}
+              aria-pressed={on}
+              aria-label={`${i + 1}日目 ${formatDate(d.date)}`}
+              onClick={() => toggleDay(d.date)}
+            >
+              <span className="dot" style={{ background: on ? '#fff' : dayColor(i) }} />
+              {i + 1}日目
+            </button>
+          );
+        })}
+        <button className={`chip sm ${showIdeas ? 'on' : ''}`} aria-pressed={showIdeas} onClick={() => setShowIdeas((v) => !v)}>
           💡 候補
         </button>
       </div>
@@ -101,26 +177,38 @@ export default function MapView({ trip, date, onDateChange, onEdit, onChange }: 
       <div className="map-box">
         <MapContainer center={fallbackCenter} zoom={13} style={{ height: '100%' }} zoomControl={false}>
           <TileLayer url={TILE_URL} attribution={TILE_ATTR} />
-          <FitBounds bounds={bounds} sig={date + showIdeas} />
-          <LongPress onPress={(lat, lng) => onEdit({ listKey: date, preset: { lat, lng } })} />
+          <FitBounds bounds={bounds} sig={dates.join() + showIdeas} />
+          <LongPress onPress={(lat, lng) => onEdit({ listKey: addDate, preset: { lat, lng } })} />
           <FollowMe me={tracking ? me : null} />
 
-          {legs.map((l, i) => (
-            <Polyline
-              key={i}
-              positions={l.line}
-              pathOptions={{ color, weight: 5, opacity: 0.75, dashArray: l.routed ? undefined : '6 8' }}
-            />
-          ))}
+          {legs.map((l) => {
+            const r = routed[legKey(l)];
+            return (
+              <Polyline
+                key={l.key}
+                positions={r?.line ?? [l.from, l.to]}
+                pathOptions={{ color: l.color, weight: 5, opacity: 0.75, dashArray: r?.routed ? undefined : '6 8' }}
+              />
+            );
+          })}
 
-          {spots.map((s, i) => (
-            <Marker key={s.id} position={[s.lat, s.lng]} icon={numberIcon(i + 1, { done: s.done, active: s === next, color })}>
+          {spots.map((s) => (
+            <Marker
+              key={s.spot.id}
+              position={[s.spot.lat, s.spot.lng]}
+              icon={numberIcon(multi ? `${s.dayIndex + 1}-${s.order}` : s.order, {
+                done: s.spot.done,
+                active: s === next,
+                color: dayColor(s.dayIndex),
+              })}
+            >
               <Popup>
                 <SpotPopup
-                  spot={s}
-                  prevMode={spots[i - 1]?.transportToNext}
-                  onEdit={() => onEdit({ listKey: date, spotId: s.id })}
-                  onToggleDone={() => onChange(upsertSpot(trip, date, { ...s, done: !s.done }))}
+                  spot={s.spot}
+                  label={multi ? `${s.dayIndex + 1}日目 ${formatDate(s.date)}` : undefined}
+                  prevMode={s.prevMode}
+                  onEdit={() => onEdit({ listKey: s.date, spotId: s.spot.id })}
+                  onToggleDone={() => onChange(upsertSpot(trip, s.date, { ...s.spot, done: !s.spot.done }))}
                 />
               </Popup>
             </Marker>
@@ -137,11 +225,10 @@ export default function MapView({ trip, date, onDateChange, onEdit, onChange }: 
           {me && <Marker position={[me.lat, me.lng]} icon={meIcon} />}
         </MapContainer>
 
-        <button
-          className={`fab locate ${tracking ? 'on' : ''}`}
-          aria-label="現在地"
-          onClick={() => setTracking((v) => !v)}
-        >
+        <button className="fab fit" aria-label="全体を表示" onClick={() => window.dispatchEvent(new Event('ta:fit'))}>
+          ⤢
+        </button>
+        <button className={`fab locate ${tracking ? 'on' : ''}`} aria-label="現在地" onClick={() => setTracking((v) => !v)}>
           ◎
         </button>
       </div>
@@ -151,19 +238,22 @@ export default function MapView({ trip, date, onDateChange, onEdit, onChange }: 
         {next ? (
           <div className="row between">
             <div className="ellipsis">
-              <div className="muted small">次の予定{next.time ? ` ${next.time}` : ''}</div>
+              <div className="muted small">
+                次の予定{multi ? ` ${next.dayIndex + 1}日目` : ''}
+                {next.spot.time ? ` ${next.spot.time}` : ''}
+              </div>
               <strong>
-                {CATEGORY_ICON[next.category]} {next.title}
+                {CATEGORY_ICON[next.spot.category]} {next.spot.title}
               </strong>
               {nextDist != null && <span className="muted small"> ・現在地から {formatDistance(nextDist)}</span>}
             </div>
-            <a className="btn primary sm" href={googleMapsDirections(next, spots[spots.indexOf(next) - 1]?.transportToNext)} target="_blank" rel="noreferrer">
+            <a className="btn primary sm" href={googleMapsDirections(next.spot, next.prevMode)} target="_blank" rel="noreferrer">
               🧭 ナビ
             </a>
           </div>
         ) : (
           <div className="muted small">
-            {spots.length ? 'この日の予定はすべて完了 🎉' : '位置付きの予定がありません。地図を長押しで追加できます'}
+            {spots.length ? '表示中の予定はすべて完了 🎉' : '位置付きの予定がありません。地図を長押しで追加できます'}
           </div>
         )}
       </div>
@@ -173,11 +263,13 @@ export default function MapView({ trip, date, onDateChange, onEdit, onChange }: 
 
 function SpotPopup({
   spot,
+  label,
   prevMode,
   onEdit,
   onToggleDone,
 }: {
   spot: Spot;
+  label?: string;
   prevMode?: Spot['transportToNext'];
   onEdit: () => void;
   onToggleDone?: () => void;
@@ -187,7 +279,7 @@ function SpotPopup({
       <strong>
         {CATEGORY_ICON[spot.category]} {spot.title}
       </strong>
-      {spot.time && <div className="muted small">{spot.time}</div>}
+      {(label || spot.time) && <div className="muted small">{[label, spot.time].filter(Boolean).join(' ')}</div>}
       {spot.memo && <div className="small">{spot.memo}</div>}
       <div className="row gap" style={{ marginTop: 6 }}>
         <a className="btn sm primary" href={googleMapsDirections(spot, prevMode)} target="_blank" rel="noreferrer">
@@ -208,13 +300,23 @@ function SpotPopup({
 
 function FitBounds({ bounds, sig }: { bounds: L.LatLngBounds | null; sig: string }) {
   const map = useMap();
+  // 「全体を表示」ボタン
   useEffect(() => {
-    // コンテナのサイズ確定後に合わせる（初回描画直後はサイズが 0 のことがある）
-    const t = setTimeout(() => {
+    const fit = () => bounds && map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    window.addEventListener('ta:fit', fit);
+    return () => window.removeEventListener('ta:fit', fit);
+  }, [map, bounds]);
+  useEffect(() => {
+    const fit = () => bounds && map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    fit();
+    // 表示直後はレイアウト確定でコンテナのサイズが変わるため、少しの間はサイズ変化のたびに合わせ直す
+    const until = Date.now() + 1500;
+    const ro = new ResizeObserver(() => {
       map.invalidateSize();
-      if (bounds) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
-    }, 50);
-    return () => clearTimeout(t);
+      if (Date.now() < until) fit();
+    });
+    ro.observe(map.getContainer());
+    return () => ro.disconnect();
   }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }

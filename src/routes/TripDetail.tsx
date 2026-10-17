@@ -23,7 +23,7 @@ export default function TripDetail({ id, tab }: { id: string; tab: string }) {
   const trip = rec && !rec.deleted ? rec.trip : undefined;
   const weather = useTripWeather(trip);
   const [edit, setEdit] = useState<EditTarget | null>(null);
-  const [mapDate, setMapDate] = useState<string | null>(null);
+  const [mapDates, setMapDates] = useState<string[] | null>(null);
 
   if (!trip) {
     return (
@@ -40,7 +40,8 @@ export default function TripDetail({ id, tab }: { id: string; tab: string }) {
 
   const today = todayLocal();
   const defaultDate = trip.days.find((d) => d.date === today)?.date ?? trip.days[0]?.date ?? null;
-  const activeMapDate = mapDate && trip.days.some((d) => d.date === mapDate) ? mapDate : defaultDate;
+  const validMapDates = mapDates?.filter((d) => trip.days.some((x) => x.date === d)) ?? [];
+  const activeMapDates = validMapDates.length ? validMapDates : defaultDate ? [defaultDate] : [];
   const update = (t: Trip) => void saveTrip(t);
   const conflictCount = rec.conflicts?.length ?? 0;
 
@@ -68,13 +69,13 @@ export default function TripDetail({ id, tab }: { id: string; tab: string }) {
             onChange={update}
             onEdit={setEdit}
             onShowMap={(date) => {
-              setMapDate(date);
+              setMapDates([date]);
               navigate('trip', id, 'map');
             }}
           />
         )}
-        {tab === 'map' && activeMapDate && (
-          <MapView trip={trip} date={activeMapDate} onDateChange={setMapDate} onEdit={setEdit} onChange={update} />
+        {tab === 'map' && activeMapDates.length > 0 && (
+          <MapView trip={trip} dates={activeMapDates} onDatesChange={setMapDates} onEdit={setEdit} onChange={update} />
         )}
         {tab === 'budget' && <BudgetView trip={trip} onChange={update} />}
         {tab === 'info' && <TripInfo rec={rec} onChange={update} />}
