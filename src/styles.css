@@ -191,3 +191,24 @@ h3 { font-size: 15px; margin: 0 0 8px; }
 .tabbar button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; color: var(--muted); cursor: pointer; }
 .tabbar button span { font-size: 20px; }
 .tabbar button.active { color: var(--primary); font-weight: 700; }
+
+/* 行きたい所 */
+.filters { position: sticky; top: calc(57px + env(safe-area-inset-top)); z-index: 900; background: var(--bg); padding: 10px 16px 8px; display: flex; flex-direction: column; gap: 8px; max-width: 720px; width: 100%; margin: 0 auto; }
+.segmented { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.segmented button { flex: 1; border: 0; background: none; padding: 8px 4px; cursor: pointer; font-size: 14px; }
+.segmented button.on { background: var(--primary); color: #fff; font-weight: 700; }
+.segmented button.on .muted { color: inherit; opacity: 0.8; }
+.group-title { margin: 4px 2px 6px; }
+.place-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.place-card { width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; cursor: pointer; display: block; gap: 8px; }
+div.place-card { cursor: default; display: flex; }
+.stars { color: #f59e0b; letter-spacing: 1px; white-space: nowrap; }
+.new-tag { color: var(--primary); font-weight: 700; }
+.revisit { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0 6px; white-space: nowrap; }
+.add-row { display: flex; }
+.add-row .add-btn + .add-btn { border-left: 1px solid var(--border); }
+.fab-add { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 1200; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--primary); color: #fff; font-size: 28px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25); cursor: pointer; }
+.places-map { flex: 1; min-height: calc(100dvh - 170px); }
+.rating-sheet h3 { font-size: 17px; margin: 4px 0 14px; }
+.rating-buttons { display: flex; flex-direction: column; gap: 8px; }
+.rating-buttons .btn { justify-content: flex-start; }

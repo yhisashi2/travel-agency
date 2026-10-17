@@ -127,6 +127,11 @@ export class GitHubClient {
     });
   }
 
+  /** 全体の行きたい所リスト（リポジトリ直下） */
+  placesPath() {
+    return 'places.json';
+  }
+
   tripPath(id: string) {
     return `${this.s.dir}/${id}.json`;
   }

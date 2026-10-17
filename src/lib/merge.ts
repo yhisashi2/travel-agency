@@ -6,7 +6,7 @@ import type { Day, Spot, Trip } from '../types/trip';
  * - 両方が同じものを別々に変更した場合は conflicts に入れ、暫定的に local を採用
  */
 export interface Conflict {
-  kind: 'spot' | 'field';
+  kind: 'spot' | 'field' | 'place';
   id: string;
   label: string;
   local: unknown;
@@ -135,4 +135,40 @@ export function applyRemoteChoice(trip: Trip, c: Conflict): Trip {
   const exists = trip.ideas.some((s) => s.id === c.id) || trip.days.some((d) => d.items.some((s) => s.id === c.id));
   if (!exists && c.remote) return { ...trip, ideas: [...trip.ideas, c.remote as Spot] };
   return { ...trip, ideas: replace(trip.ideas), days: trip.days.map((d) => ({ ...d, items: replace(d.items) })) };
+}
+
+/**
+ * ID を持つ要素のリストの 3-way マージ（places.json 用）。
+ * 並びは remote 順 + local で新規追加されたもの。同じ要素の競合は local を採用して conflicts に入れる
+ */
+export function mergeById<T extends { id: string }>(
+  base: T[] | null,
+  local: T[],
+  remote: T[],
+  label: (t: T) => string,
+): { merged: T[]; conflicts: Conflict[] } {
+  const conflicts: Conflict[] = [];
+  const b = new Map((base ?? remote).map((x) => [x.id, x]));
+  const l = new Map(local.map((x) => [x.id, x]));
+  const r = new Map(remote.map((x) => [x.id, x]));
+  const out: T[] = [];
+  const push = (id: string) => {
+    const bb = b.get(id);
+    const ll = l.get(id);
+    const rr = r.get(id);
+    if (ll && rr) {
+      out.push(pick3(bb, ll, rr, () => conflicts.push({ kind: 'place', id, label: label(ll), local: ll, remote: rr })) as T);
+    } else if (ll) {
+      if (bb && eq(bb, ll)) return; // remote で削除され、local は未変更
+      if (bb) conflicts.push({ kind: 'place', id, label: label(ll), local: ll, remote: null });
+      out.push(ll);
+    } else if (rr) {
+      if (bb && eq(bb, rr)) return; // local で削除され、remote は未変更
+      if (bb) conflicts.push({ kind: 'place', id, label: label(rr), local: null, remote: rr });
+      out.push(rr);
+    }
+  };
+  remote.forEach((x) => push(x.id));
+  local.forEach((x) => !r.has(x.id) && push(x.id));
+  return { merged: out, conflicts };
 }

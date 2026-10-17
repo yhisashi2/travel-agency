@@ -11,7 +11,7 @@ const LABEL = {
 export default function SyncBadge() {
   const sync = useStore((s) => s.sync);
   const error = useStore((s) => s.error);
-  const dirty = useStore((s) => Object.values(s.records).some((r) => r.dirty));
+  const dirty = useStore((s) => Object.values(s.records).some((r) => r.dirty) || !!s.places?.dirty);
   const l = LABEL[sync];
   const text = sync === 'idle' && dirty ? '未送信あり' : l.text;
   return (

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { reverseGeocode, searchPlaces, type Place } from '../lib/geocode';
+import { placeFromSpot } from '../lib/places';
+import { updatePlaces, usePlaces } from '../lib/store';
 import { IDEAS, deleteSpot, findSpot, formatDate, newId, spotsWithLocation, upsertSpot, type ListKey } from '../lib/tripOps';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL, TRANSPORTS, TRANSPORT_LABEL, type Spot, type Trip } from '../types/trip';
 import { TILE_ATTR, TILE_URL, numberIcon } from './mapIcons';
@@ -177,6 +179,8 @@ export default function SpotEditor({ trip, target, onClose, onChange }: Props) {
             </label>
           </div>
 
+          <ListLink spot={spot} onLink={(placeId) => setSpot((s) => ({ ...s, placeId }))} />
+
           <label>
             予約番号
             <input value={spot.bookingRef ?? ''} onChange={(e) => set('bookingRef', e.target.value)} />
@@ -209,7 +213,36 @@ export default function SpotEditor({ trip, target, onClose, onChange }: Props) {
   );
 }
 
-function PlaceSearch({
+/** 全体の行きたい所リストとの紐付け */
+function ListLink({ spot, onLink }: { spot: Spot; onLink: (placeId: string | undefined) => void }) {
+  const place = usePlaces().find((p) => p.id === spot.placeId);
+  if (place) {
+    return (
+      <div className="row between small">
+        <span>📍 行きたい所リストに登録済み{place.visits.length ? '（行ったことあり）' : ''}</span>
+        <button type="button" className="link small" onClick={() => onLink(undefined)}>
+          紐付けを外す
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="btn sm"
+      disabled={!spot.title.trim()}
+      onClick={() => {
+        const p = placeFromSpot({ ...spot, title: spot.title.trim() });
+        void updatePlaces((list) => [...list, p]);
+        onLink(p.id);
+      }}
+    >
+      📍 行きたい所リストにも保存
+    </button>
+  );
+}
+
+export function PlaceSearch({
   near,
   value: q,
   onTitle,
@@ -286,7 +319,7 @@ function PlaceSearch({
   );
 }
 
-function PickMap({
+export function PickMap({
   center,
   value,
   onPick,

@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
+import type { PlacesFile } from '../types/place';
 import type { Trip } from '../types/trip';
 import type { Conflict } from './merge';
 
@@ -19,9 +20,10 @@ export interface TripRecord {
 
 let dbp: Promise<IDBPDatabase> | null = null;
 function db() {
-  dbp ??= openDB('travel-agency', 1, {
-    upgrade(d) {
-      d.createObjectStore('trips', { keyPath: 'id' });
+  dbp ??= openDB('travel-agency', 2, {
+    upgrade(d, oldVersion) {
+      if (oldVersion < 1) d.createObjectStore('trips', { keyPath: 'id' });
+      if (oldVersion < 2) d.createObjectStore('places', { keyPath: 'id' });
     },
   });
   return dbp;
@@ -41,4 +43,22 @@ export async function putRecord(rec: TripRecord): Promise<void> {
 
 export async function removeRecord(id: string): Promise<void> {
   await (await db()).delete('trips', id);
+}
+
+/** 全体の行きたい所リスト（places.json）。1 レコードのみ */
+export interface PlacesRecord {
+  id: 'places';
+  data: PlacesFile;
+  sha?: string;
+  base?: PlacesFile;
+  dirty: boolean;
+  conflicts?: Conflict[];
+}
+
+export async function getPlacesRecord(): Promise<PlacesRecord | undefined> {
+  return (await db()).get('places', 'places');
+}
+
+export async function putPlacesRecord(rec: PlacesRecord): Promise<void> {
+  await (await db()).put('places', rec);
 }

@@ -46,6 +46,8 @@ export const SpotSchema = z.object({
   url: z.string().optional(),
   memo: z.string().optional(),
   done: z.boolean().optional(),
+  /** 全体の「行きたい所リスト」（places.json）の場所 ID */
+  placeId: z.string().optional(),
 });
 
 export const DaySchema = z.object({

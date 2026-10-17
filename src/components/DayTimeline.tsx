@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '../lib/budget';
 import { googleMapsDirections } from '../lib/navigation';
+import { usePlaces } from '../lib/store';
 import {
   IDEAS,
   distanceMeters,
@@ -14,6 +15,7 @@ import {
 } from '../lib/tripOps';
 import { describeWeather, weatherAdvice, type DailyWeather } from '../lib/weather';
 import { CATEGORY_ICON, TRANSPORT_LABEL, type Spot, type Trip } from '../types/trip';
+import { Stars } from './PlaceEditor';
 import type { EditTarget } from './SpotEditor';
 
 interface Props {
@@ -21,10 +23,11 @@ interface Props {
   weather: Record<string, DailyWeather & { stale: boolean }>;
   onChange: (t: Trip) => void;
   onEdit: (t: EditTarget) => void;
+  onPickPlaces: () => void;
   onShowMap: (date: string) => void;
 }
 
-export default function DayTimeline({ trip, weather, onChange, onEdit, onShowMap }: Props) {
+export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPlaces, onShowMap }: Props) {
   const today = todayLocal();
   const todayRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -72,9 +75,14 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onShowMap
           <div className="day-title">💡 行きたい場所（日程未定）</div>
         </div>
         <SpotList trip={trip} listKey={IDEAS} items={trip.ideas} onChange={onChange} onEdit={onEdit} />
-        <button className="add-btn" onClick={() => onEdit({ listKey: IDEAS })}>
-          ＋ 候補を追加
-        </button>
+        <div className="add-row">
+          <button className="add-btn" onClick={() => onEdit({ listKey: IDEAS })}>
+            ＋ 候補を追加
+          </button>
+          <button className="add-btn" onClick={onPickPlaces}>
+            📍 行きたい所から
+          </button>
+        </div>
       </section>
     </div>
   );
@@ -104,6 +112,7 @@ function SpotList({
   onEdit: (t: EditTarget) => void;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const places = usePlaces();
   if (items.length === 0) return <p className="muted small pad">予定はまだありません</p>;
   return (
     <ol className="spots">
@@ -114,6 +123,9 @@ function SpotList({
             ? distanceMeters({ lat: s.lat, lng: s.lng }, { lat: next.lat, lng: next.lng })
             : null;
         const expanded = open === s.id;
+        // 別の旅行で行ったことがある場所なら再訪マーク
+        const place = s.placeId ? places.find((p) => p.id === s.placeId) : undefined;
+        const before = place?.visits.some((v) => v.tripId !== trip.id);
         return (
           <li key={s.id}>
             <div className={`spot ${s.done ? 'done' : ''}`}>
@@ -135,6 +147,11 @@ function SpotList({
                   <span className="spot-title">
                     {CATEGORY_ICON[s.category]} {s.title}
                   </span>
+                  {before && (
+                    <span className="revisit" title="以前にも行ったことがある場所">
+                      再訪 <Stars rating={place!.rating} />
+                    </span>
+                  )}
                 </div>
                 {(s.cost || s.bookingRef || s.memo) && (
                   <div className="muted small spot-meta">

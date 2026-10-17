@@ -36,7 +36,7 @@
         },
         "updatedAt": {
           "type": "string",
-          "default": "2026-10-17T12:54:23.100Z"
+          "default": "2026-10-17T15:13:54.168Z"
         },
         "days": {
           "type": "array",
@@ -127,6 +127,9 @@
                     },
                     "done": {
                       "type": "boolean"
+                    },
+                    "placeId": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -222,6 +225,9 @@
               },
               "done": {
                 "type": "boolean"
+              },
+              "placeId": {
+                "type": "string"
               }
             },
             "required": [

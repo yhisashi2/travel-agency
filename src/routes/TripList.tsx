@@ -21,6 +21,9 @@ export default function TripList() {
         <h1>✈️ Travel Agency</h1>
         <div className="row">
           <SyncBadge />
+          <button className="icon-btn" aria-label="行きたい所" onClick={() => navigate('places')}>
+            📍
+          </button>
           <button className="icon-btn" aria-label="設定" onClick={() => navigate('settings')}>
             ⚙️
           </button>

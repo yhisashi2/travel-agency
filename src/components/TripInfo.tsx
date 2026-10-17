@@ -113,7 +113,7 @@ function describe(v: unknown): string {
   return typeof v === 'string' ? v : JSON.stringify(v);
 }
 
-function ConflictRow({ c, onPick }: { c: Conflict; onPick: (useRemote: boolean) => void }) {
+export function ConflictRow({ c, onPick }: { c: Conflict; onPick: (useRemote: boolean) => void }) {
   return (
     <div className="conflict">
       <strong>{c.label}</strong>

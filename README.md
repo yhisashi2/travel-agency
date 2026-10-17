@@ -7,6 +7,7 @@
 - **地図**: Leaflet + OpenStreetMap。番号付きピン、徒歩・車の道なりルート線（電車・飛行機は点線の直線）、現在地、次の予定までの距離、長押しでその場所に予定を追加
 - **ナビ**: 各予定から Google マップの経路案内を起動
 - **天気**: Open-Meteo の 16 日予報を各日に表示。雨・猛暑・氷点下のときは注意を表示
+- **行きたい所リスト**: 旅行に関係なく行きたい所をためておける全体リスト（📍）。行った場所は訪問日とお気に入り度（★1〜3）を記録。旅行中に予定を完了にすると自動で記録され、旅行への候補追加や Claude Code のプラン作成では未訪問の場所を優先
 - **予算・メモ**: 費用・予約番号・URL・メモ。カテゴリ別/日別集計、外貨は換算レートで合算
 - **同期**: 端末内（IndexedDB）に即保存 → オンライン時に GitHub へ自動コミット。別の場所（Claude Code など）での変更は予定単位で自動マージし、同じ予定の競合だけ選択を求めます
 
@@ -21,7 +22,7 @@ API キーは不要です（OSM / Open-Meteo / Nominatim / 公開 OSRM を利用
 
 ### 2. データ用リポジトリを作る（非公開推奨）
 1. 非公開リポジトリ `travel-agency-data` を作成
-2. [`data-template/`](data-template) の中身（`CLAUDE.md`, `schema/`, `trips/`）をそのリポジトリのルートにコピーして push
+2. [`data-template/`](data-template) の中身（`CLAUDE.md`, `places.json`, `schema/`, `trips/`）をそのリポジトリのルートにコピーして push
 3. GitHub → Settings → Developer settings → **Fine-grained personal access tokens** で、
    対象を `travel-agency-data` のみ、権限 **Contents: Read and write** のトークンを発行
 
