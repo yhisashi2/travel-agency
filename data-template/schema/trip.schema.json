@@ -1,0 +1,245 @@
+{
+  "$ref": "#/definitions/Trip",
+  "definitions": {
+    "Trip": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "startDate": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "endDate": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "baseCurrency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3,
+          "default": "JPY"
+        },
+        "rates": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "default": {}
+        },
+        "updatedAt": {
+          "type": "string",
+          "default": "2026-10-17T12:19:30.574Z"
+        },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "title": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "sightseeing",
+                        "food",
+                        "lodging",
+                        "transport",
+                        "other"
+                      ],
+                      "default": "sightseeing"
+                    },
+                    "time": {
+                      "type": "string",
+                      "pattern": "^\\d{2}:\\d{2}$"
+                    },
+                    "endTime": {
+                      "type": "string",
+                      "pattern": "^\\d{2}:\\d{2}$"
+                    },
+                    "lat": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                    },
+                    "lng": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    },
+                    "address": {
+                      "type": "string"
+                    },
+                    "transportToNext": {
+                      "type": "string",
+                      "enum": [
+                        "walk",
+                        "car",
+                        "train",
+                        "bus",
+                        "flight"
+                      ]
+                    },
+                    "cost": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3
+                    },
+                    "bookingRef": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "memo": {
+                      "type": "string"
+                    },
+                    "done": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "date"
+            ],
+            "additionalProperties": false
+          },
+          "default": []
+        },
+        "ideas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "sightseeing",
+                  "food",
+                  "lodging",
+                  "transport",
+                  "other"
+                ],
+                "default": "sightseeing"
+              },
+              "time": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}$"
+              },
+              "endTime": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}$"
+              },
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "lng": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "address": {
+                "type": "string"
+              },
+              "transportToNext": {
+                "type": "string",
+                "enum": [
+                  "walk",
+                  "car",
+                  "train",
+                  "bus",
+                  "flight"
+                ]
+              },
+              "cost": {
+                "type": "number",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "bookingRef": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "memo": {
+                "type": "string"
+              },
+              "done": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false
+          },
+          "default": []
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "startDate",
+        "endDate"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
