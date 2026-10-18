@@ -12,7 +12,8 @@ export default function TripList() {
   const trips = Object.values(records)
     .filter((r) => !r.deleted)
     .map((r) => r.trip)
-    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+    // 日程未定（計画中）を先頭に、続けて出発日の新しい順
+    .sort((a, b) => (a.startDate && b.startDate ? b.startDate.localeCompare(a.startDate) : a.startDate ? 1 : b.startDate ? -1 : 0));
   const [creating, setCreating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const today = todayLocal();
@@ -44,16 +45,21 @@ export default function TripList() {
 
         <ul className="trip-list">
           {trips.map((t) => {
-            const ongoing = t.startDate <= today && today <= t.endDate;
+            const ongoing = !!t.startDate && !!t.endDate && t.startDate <= today && today <= t.endDate;
             const count = t.days.reduce((n, d) => n + d.items.length, 0);
             return (
               <li key={t.id} className="trip-row">
                 <button className="trip-card" onClick={() => navigate('trip', t.id)}>
                   <div className="trip-card-title">
                     {t.title} {ongoing && <span className="pill">旅行中</span>}
+                    {!t.startDate && <span className="pill plan">日程未定</span>}
                   </div>
                   <div className="muted small">
-                    {formatDate(t.startDate)} 〜 {formatDate(t.endDate)}・{t.days.length}日間・{count}件の予定
+                    {t.startDate && t.endDate
+                      ? `${formatDate(t.startDate)} 〜 ${formatDate(t.endDate)}・${t.days.length}日間・${count}件の予定`
+                      : [t.destination && `目的地: ${t.destination}`, t.durationDays && `${t.durationDays}日間くらい`, `${t.ideas.length}件の候補`]
+                          .filter(Boolean)
+                          .join('・')}
                   </div>
                 </button>
                 <button
@@ -120,14 +126,22 @@ function NewTripForm({ onDone }: { onDone: () => void }) {
   const [title, setTitle] = useState('');
   const [start, setStart] = useState(today);
   const [end, setEnd] = useState(today);
+  const [undated, setUndated] = useState(false);
+  const [destination, setDestination] = useState('');
+  const [days, setDays] = useState('');
   const [currency, setCurrency] = useState('JPY');
   return (
     <form
       className="card form"
       onSubmit={async (e) => {
         e.preventDefault();
-        if (!title.trim() || end < start) return;
-        const t = createTrip(title.trim(), start, end, currency.toUpperCase());
+        if (!title.trim() || (!undated && end < start)) return;
+        const t = undated
+          ? createTrip(title.trim(), undefined, undefined, currency.toUpperCase(), {
+              destination: destination.trim() || undefined,
+              durationDays: Number(days) > 0 ? Math.floor(Number(days)) : undefined,
+            })
+          : createTrip(title.trim(), start, end, currency.toUpperCase(), { destination: destination.trim() || undefined });
         await saveTrip(t);
         onDone();
         navigate('trip', t.id);
@@ -137,16 +151,31 @@ function NewTripForm({ onDone }: { onDone: () => void }) {
         旅行名
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例: 京都 2泊3日" autoFocus required />
       </label>
-      <div className="row gap">
-        <label className="grow">
-          出発日
-          <input type="date" value={start} onChange={(e) => (setStart(e.target.value), end < e.target.value && setEnd(e.target.value))} required />
+      <label>
+        目的地{undated ? '' : '（任意）'}
+        <input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="例: 九州、京都、北海道" />
+      </label>
+      <label className="check-row">
+        <input type="checkbox" checked={undated} onChange={(e) => setUndated(e.target.checked)} />
+        日程は未定（行きたい場所だけ先に集める）
+      </label>
+      {undated ? (
+        <label>
+          目安の日数（任意）
+          <input type="number" inputMode="numeric" min={1} max={60} value={days} onChange={(e) => setDays(e.target.value)} placeholder="例: 5" />
         </label>
-        <label className="grow">
-          帰着日
-          <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} required />
-        </label>
-      </div>
+      ) : (
+        <div className="row gap">
+          <label className="grow">
+            出発日
+            <input type="date" value={start} onChange={(e) => (setStart(e.target.value), end < e.target.value && setEnd(e.target.value))} required />
+          </label>
+          <label className="grow">
+            帰着日
+            <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} required />
+          </label>
+        </div>
+      )}
       <label>
         基準通貨
         <input value={currency} onChange={(e) => setCurrency(e.target.value)} maxLength={3} placeholder="JPY" />

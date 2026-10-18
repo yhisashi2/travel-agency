@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '../lib/budget';
 import { googleMapsDirections } from '../lib/navigation';
-import { usePlaces } from '../lib/store';
+import { navigate } from '../lib/router';
+import { useHome, usePlaces } from '../lib/store';
 import {
   IDEAS,
   distanceMeters,
@@ -34,8 +35,32 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPla
     todayRef.current?.scrollIntoView({ block: 'start' });
   }, []);
 
+  const home = useHome();
+  const undated = trip.days.length === 0;
+  const located = home ? trip.ideas.filter((s) => s.lat != null && s.lng != null) : [];
+  const fromHome = (s: Spot) => distanceMeters(home!, { lat: s.lat!, lng: s.lng! });
+  const sortByHome = () => {
+    const withLoc = [...located].sort((a, b) => fromHome(a) - fromHome(b));
+    const rest = trip.ideas.filter((s) => s.lat == null || s.lng == null);
+    onChange({ ...trip, ideas: [...withLoc, ...rest], updatedAt: new Date().toISOString() });
+  };
+
   return (
     <div className="timeline">
+      {undated && (
+        <div className="card undated">
+          <div>
+            <strong>📅 日程は未定</strong>
+            <div className="muted small">
+              {[trip.destination && `目的地: ${trip.destination}`, trip.durationDays && `${trip.durationDays}日間くらい`].filter(Boolean).join('・') ||
+                '行きたい場所を集めておき、日程が決まったら日ごとに振り分けます'}
+            </div>
+          </div>
+          <button className="btn sm primary" onClick={() => navigate('trip', trip.id, 'info')}>
+            日程を決める
+          </button>
+        </div>
+      )}
       {trip.days.map((day, i) => {
         const w = weather[day.date];
         const isToday = day.date === today;
@@ -72,9 +97,14 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPla
 
       <section className="day ideas">
         <div className="day-head">
-          <div className="day-title">💡 行きたい場所（日程未定）</div>
+          <div className="day-title">💡 行きたい場所{undated ? (trip.destination ? `（${trip.destination}）` : '') : '（日程未定）'}</div>
+          {located.length > 1 && (
+            <button className="link small" onClick={sortByHome}>
+              🏠 自宅から近い順
+            </button>
+          )}
         </div>
-        <SpotList trip={trip} listKey={IDEAS} items={trip.ideas} onChange={onChange} onEdit={onEdit} />
+        <SpotList trip={trip} listKey={IDEAS} items={trip.ideas} onChange={onChange} onEdit={onEdit} home={home} />
         <div className="add-row">
           <button className="add-btn" onClick={() => onEdit({ listKey: IDEAS })}>
             ＋ 候補を追加
@@ -104,12 +134,15 @@ function SpotList({
   items,
   onChange,
   onEdit,
+  home,
 }: {
   trip: Trip;
   listKey: ListKey;
   items: Spot[];
   onChange: (t: Trip) => void;
   onEdit: (t: EditTarget) => void;
+  /** 指定すると各予定に自宅からの距離を出す（候補リスト用） */
+  home?: { lat: number; lng: number };
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const places = usePlaces();
@@ -147,6 +180,9 @@ function SpotList({
                   <span className="spot-title">
                     {CATEGORY_ICON[s.category]} {s.title}
                   </span>
+                  {home && s.lat != null && s.lng != null && (
+                    <span className="muted small nowrap">🏠 {formatDistance(distanceMeters(home, { lat: s.lat, lng: s.lng }))}</span>
+                  )}
                   {before && (
                     <span className="revisit" title="以前にも行ったことがある場所">
                       再訪 <Stars rating={place!.rating} />

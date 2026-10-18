@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { suggestPlaces } from '../lib/places';
-import { usePlaces } from '../lib/store';
-import { IDEAS, formatDate, formatDistance, type ListKey } from '../lib/tripOps';
+import { useHome, usePlaces } from '../lib/store';
+import { IDEAS, formatDate, formatDistance, spotsWithLocation, type ListKey } from '../lib/tripOps';
 import { RATING_LABEL, isVisited, type Place } from '../types/place';
 import { CATEGORY_ICON, type Trip } from '../types/trip';
 import { Stars } from './PlaceEditor';
@@ -17,17 +17,20 @@ export default function PlacePicker({
   onClose: () => void;
 }) {
   const places = usePlaces();
+  const home = useHome();
   const [onlyNew, setOnlyNew] = useState(true);
   const [q, setQ] = useState('');
   const [listKey, setListKey] = useState<ListKey>(IDEAS);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  // 位置付きの予定がまだ無ければ、距離は自宅から（suggestPlaces と同じ基準）
+  const fromHome = !!home && !spotsWithLocation([...trip.days.flatMap((d) => d.items), ...trip.ideas]).length;
 
   const items = useMemo(
     () =>
-      suggestPlaces(places, trip).filter(
+      suggestPlaces(places, trip, home).filter(
         (s) => (!onlyNew || !isVisited(s.place)) && (!q || [s.place.title, s.place.area, s.place.memo].some((x) => x?.includes(q))),
       ),
-    [places, trip, onlyNew, q],
+    [places, trip, home, onlyNew, q],
   );
 
   return (
@@ -81,7 +84,7 @@ export default function PlacePicker({
                         ) : (
                           <span className="new-tag">未訪問</span>
                         )}
-                        {distance != null && ` ・旅程から ${formatDistance(distance)}`}
+                        {distance != null && ` ・${fromHome ? '🏠自宅' : '旅程'}から ${formatDistance(distance)}`}
                         {p.area && ` ・${p.area}`}
                       </div>
                     </div>

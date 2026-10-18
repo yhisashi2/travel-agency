@@ -5,7 +5,8 @@ import { googleMapsDirections } from '../lib/navigation';
 import { routeLine } from '../lib/routing';
 import { IDEAS, distanceMeters, formatDate, formatDistance, spotsWithLocation, todayLocal, upsertSpot } from '../lib/tripOps';
 import { CATEGORY_ICON, type Spot, type Transport, type Trip } from '../types/trip';
-import { TILE_ATTR, TILE_URL, meIcon, numberIcon } from './mapIcons';
+import { useHome } from '../lib/store';
+import { TILE_ATTR, TILE_URL, homeIcon, meIcon, numberIcon } from './mapIcons';
 import type { EditTarget } from './SpotEditor';
 
 const DAY_COLORS = ['#0f766e', '#2563eb', '#c2410c', '#7c3aed', '#be123c', '#4d7c0f', '#0369a1', '#a16207'];
@@ -41,7 +42,9 @@ interface Leg {
 const legKey = (l: Leg) => `${l.from}|${l.to}|${l.mode ?? ''}`;
 
 export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }: Props) {
-  const [showIdeas, setShowIdeas] = useState(false);
+  // 日程未定（日が無い）なら候補を最初から表示
+  const [showIdeas, setShowIdeas] = useState(trip.days.length === 0);
+  const home = useHome();
   const [me, setMe] = useState<{ lat: number; lng: number; acc: number } | null>(null);
   const [tracking, setTracking] = useState(false);
   const [geoErr, setGeoErr] = useState<string | null>(null);
@@ -49,7 +52,7 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
 
   const selected = useMemo(() => new Set(dates), [dates]);
   const multi = selected.size > 1;
-  const allSelected = trip.days.every((d) => selected.has(d.date));
+  const allSelected = trip.days.length > 0 && trip.days.every((d) => selected.has(d.date));
 
   // 選択した日の地点（日付順）と区間。連続して選択した日は前日の最後と翌日の最初もつなぐ
   const { spots, legs } = useMemo(() => {
@@ -88,6 +91,7 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
     }
   };
   const toggleAll = () => {
+    if (!trip.days.length) return;
     if (allSelected) {
       onDatesChange([trip.days.find((d) => d.date === today)?.date ?? trip.days[0].date]);
     } else {
@@ -144,15 +148,17 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
 
   const fallbackCenter: LatLng = (() => {
     const any = spotsWithLocation([...trip.days.flatMap((d) => d.items), ...trip.ideas])[0];
-    return any ? [any.lat, any.lng] : [35.68, 139.76];
+    return any ? [any.lat, any.lng] : home ? [home.lat, home.lng] : [35.68, 139.76];
   })();
 
   return (
     <div className="map-wrap">
       <div className="day-chips" role="group" aria-label="表示する日">
-        <button className={`chip sm ${allSelected ? 'on' : ''}`} aria-pressed={allSelected} onClick={toggleAll}>
-          全日程
-        </button>
+        {trip.days.length > 0 && (
+          <button className={`chip sm ${allSelected ? 'on' : ''}`} aria-pressed={allSelected} onClick={toggleAll}>
+            全日程
+          </button>
+        )}
         {trip.days.map((d, i) => {
           const on = selected.has(d.date);
           return (
@@ -222,6 +228,14 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
             </Marker>
           ))}
 
+          {home && (
+            <Marker position={[home.lat, home.lng]} icon={homeIcon}>
+              <Popup>
+                <strong>🏠 {home.title}</strong>
+                {home.address && <div className="muted small">{home.address}</div>}
+              </Popup>
+            </Marker>
+          )}
           {me && <Marker position={[me.lat, me.lng]} icon={meIcon} />}
         </MapContainer>
 
@@ -253,7 +267,11 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
           </div>
         ) : (
           <div className="muted small">
-            {spots.length ? '表示中の予定はすべて完了 🎉' : '位置付きの予定がありません。地図を長押しで追加できます'}
+            {spots.length
+              ? '表示中の予定はすべて完了 🎉'
+              : trip.days.length
+                ? '位置付きの予定がありません。地図を長押しで追加できます'
+                : '日程は未定です。地図を長押しで候補を追加できます'}
           </div>
         )}
       </div>

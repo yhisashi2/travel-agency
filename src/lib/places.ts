@@ -119,8 +119,12 @@ export interface Suggestion {
 /**
  * 旅行への候補: 未訪問 → また行きたい(★3) → その他の訪問済み の順、同じ順位なら旅程に近い順
  */
-export function suggestPlaces(places: Place[], trip: Trip): Suggestion[] {
-  const pts = spotsWithLocation([...trip.days.flatMap((d) => d.items), ...trip.ideas]);
+export function suggestPlaces(places: Place[], trip: Trip, home?: { lat: number; lng: number }): Suggestion[] {
+  // 予定が無い（日程未定で候補もこれから）なら自宅からの距離で並べる
+  const spots = spotsWithLocation([...trip.days.flatMap((d) => d.items), ...trip.ideas]);
+  const pts = spots.length ? spots : home ? [home] : [];
+  const dest = trip.destination ? normalize(trip.destination) : '';
+  const inDest = (p: Place) => !!dest && [p.area, p.title, p.address].some((x) => x && normalize(x).includes(dest));
   const used = new Set([...trip.days.flatMap((d) => d.items), ...trip.ideas].map((s) => s.placeId).filter(Boolean));
   const rank = (p: Place) => (!isVisited(p) ? 0 : p.rating === 3 ? 1 : 2);
   return places
@@ -135,6 +139,9 @@ export function suggestPlaces(places: Place[], trip: Trip): Suggestion[] {
     .sort((a, b) => {
       const r = rank(a.place) - rank(b.place);
       if (r) return r;
+      // 目的地に合う場所を先に
+      const d = Number(inDest(b.place)) - Number(inDest(a.place));
+      if (d) return d;
       if (a.distance == null) return b.distance == null ? 0 : 1;
       if (b.distance == null) return -1;
       return a.distance - b.distance;

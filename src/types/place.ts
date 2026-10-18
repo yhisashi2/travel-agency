@@ -35,11 +35,21 @@ export const PlaceSchema = z.object({
   createdAt: z.string().optional(),
 });
 
+/** 自宅（出発・帰着地。旅行の計画で距離の基準にする） */
+export const HomeSchema = z.object({
+  title: z.string().min(1),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  address: z.string().optional(),
+});
+
 export const PlacesFileSchema = z.object({
   updatedAt: z.string().default(() => new Date().toISOString()),
+  home: HomeSchema.optional(),
   places: z.array(PlaceSchema).default([]),
 });
 
+export type Home = z.infer<typeof HomeSchema>;
 export type Rating = 1 | 2 | 3;
 export type Visit = z.infer<typeof VisitSchema>;
 export type Place = z.infer<typeof PlaceSchema>;

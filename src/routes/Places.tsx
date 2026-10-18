@@ -8,8 +8,8 @@ import { ConflictRow } from '../components/TripInfo';
 import type { Conflict } from '../lib/merge';
 import { lastVisit } from '../lib/places';
 import { navigate } from '../lib/router';
-import { resolvePlaceConflict, usePlaces, useStore } from '../lib/store';
-import { formatDate } from '../lib/tripOps';
+import { resolvePlaceConflict, useHome, usePlaces, useStore } from '../lib/store';
+import { distanceMeters, formatDate, formatDistance } from '../lib/tripOps';
 import { RATING_LABEL, isVisited, type Place } from '../types/place';
 import { CATEGORY_ICON } from '../types/trip';
 
@@ -24,6 +24,9 @@ export default function Places() {
   const [q, setQ] = useState('');
   const [area, setArea] = useState('');
   const [edit, setEdit] = useState<{ id?: string } | null>(null);
+  const home = useHome();
+  const [nearFirst, setNearFirst] = useState(false);
+  const fromHome = (p: Place) => (home && p.lat != null && p.lng != null ? distanceMeters(home, { lat: p.lat, lng: p.lng }) : null);
 
   const counts = { todo: places.filter((p) => !isVisited(p)).length, done: places.filter(isVisited).length, all: places.length };
   const areas = useMemo(() => [...new Set(places.map((p) => p.area).filter((a): a is string => !!a))].sort(), [places]);
@@ -35,13 +38,17 @@ export default function Places() {
       (!q || [p.title, p.area, p.memo, p.address].some((x) => x?.toLowerCase().includes(q.toLowerCase()))),
   );
   const groups = useMemo(() => {
+    if (nearFirst && home) {
+      const d = (p: Place) => fromHome(p) ?? Infinity;
+      return [['🏠 自宅から近い順', [...shown].sort((a, b) => d(a) - d(b))]] as [string, Place[]][];
+    }
     const m = new Map<string, Place[]>();
     for (const p of shown) {
       const k = p.area ?? 'エリア未設定';
       m.set(k, [...(m.get(k) ?? []), p]);
     }
     return [...m.entries()].sort(([a], [b]) => (a === 'エリア未設定' ? 1 : b === 'エリア未設定' ? -1 : a.localeCompare(b, 'ja')));
-  }, [shown]);
+  }, [shown, nearFirst, home]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="page">
@@ -76,6 +83,11 @@ export default function Places() {
                 <option key={a}>{a}</option>
               ))}
             </select>
+          )}
+          {home && view === 'list' && (
+            <button className={`btn sm ${nearFirst ? 'primary' : ''}`} aria-pressed={nearFirst} onClick={() => setNearFirst((v) => !v)}>
+              🏠 近い順
+            </button>
           )}
           <button className="btn sm" onClick={() => setView((v) => (v === 'list' ? 'map' : 'list'))}>
             {view === 'list' ? '🗺️ 地図' : '☰ 一覧'}
@@ -124,6 +136,7 @@ export default function Places() {
                               .filter(Boolean)
                               .join('・')
                           : (p.memo ?? '')}
+                        {fromHome(p) != null && ` 🏠${formatDistance(fromHome(p)!)}`}
                       </div>
                     </button>
                   </li>

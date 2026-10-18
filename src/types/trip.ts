@@ -59,8 +59,13 @@ export const DaySchema = z.object({
 export const TripSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/, '英小文字・数字・ハイフンのみ'),
   title: z.string().min(1),
-  startDate: date,
-  endDate: date,
+  /** 日程が未定の旅行では startDate / endDate を省略する（days は空、候補は ideas に入れる） */
+  startDate: date.optional(),
+  endDate: date.optional(),
+  /** 目的地（日程未定のプランの軸になる。例: 九州、京都） */
+  destination: z.string().optional(),
+  /** 日程未定のときの目安日数 */
+  durationDays: z.number().int().positive().optional(),
   baseCurrency: z.string().length(3).default('JPY'),
   /** 1 単位の外貨が baseCurrency でいくらか（例: { USD: 150 }） */
   rates: z.record(z.number().positive()).default({}),
@@ -76,6 +81,9 @@ export type Transport = (typeof TRANSPORTS)[number];
 export type Spot = z.infer<typeof SpotSchema>;
 export type Day = z.infer<typeof DaySchema>;
 export type Trip = z.infer<typeof TripSchema>;
+
+/** 日程が決まっている旅行か */
+export const isDated = (t: Trip): t is Trip & { startDate: string; endDate: string } => !!t.startDate && !!t.endDate;
 
 export function parseTrip(json: unknown): Trip {
   return TripSchema.parse(json);

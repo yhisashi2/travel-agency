@@ -4,13 +4,15 @@ import type { Conflict } from '../lib/merge';
 import { navigate } from '../lib/router';
 import type { TripRecord } from '../lib/storage';
 import { deleteTrip, exportTrip, resolveConflict } from '../lib/store';
-import { setTripDates } from '../lib/tripOps';
+import { clearTripDates, setTripDates, todayLocal } from '../lib/tripOps';
 import type { Spot, Trip } from '../types/trip';
 
 export default function TripInfo({ rec, onChange }: { rec: TripRecord; onChange: (t: Trip) => void }) {
   const trip = rec.trip;
-  const [start, setStart] = useState(trip.startDate);
-  const [end, setEnd] = useState(trip.endDate);
+  const [start, setStart] = useState(trip.startDate ?? '');
+  const [end, setEnd] = useState(trip.endDate ?? '');
+  const dated = !!trip.startDate && !!trip.endDate;
+  const touch = (patch: Partial<Trip>) => onChange({ ...trip, ...patch, updatedAt: new Date().toISOString() });
   const gh = loadSettings();
 
   return (
@@ -28,25 +30,65 @@ export default function TripInfo({ rec, onChange }: { rec: TripRecord; onChange:
       <div className="card form">
         <label>
           旅行名
-          <input value={trip.title} onChange={(e) => onChange({ ...trip, title: e.target.value, updatedAt: new Date().toISOString() })} />
+          <input value={trip.title} onChange={(e) => touch({ title: e.target.value })} />
         </label>
+        <label>
+          目的地
+          <input value={trip.destination ?? ''} placeholder="例: 九州" onChange={(e) => touch({ destination: e.target.value || undefined })} />
+        </label>
+        {!dated && (
+          <label>
+            目安の日数
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={60}
+              value={trip.durationDays ?? ''}
+              onChange={(e) => touch({ durationDays: Number(e.target.value) > 0 ? Math.floor(Number(e.target.value)) : undefined })}
+            />
+          </label>
+        )}
+        {!dated && <p className="muted small">📅 日程は未定です。出発日と帰着日を入れて「日程を決める」と、日ごとの予定を組めます。</p>}
         <div className="row gap">
           <label className="grow">
             出発日
-            <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <input
+              type="date"
+              value={start}
+              onChange={(e) => {
+                setStart(e.target.value);
+                // 日程未定から決めるときは目安日数から帰着日を補う
+                if (!dated && e.target.value && trip.durationDays && !end) {
+                  const d = new Date(e.target.value + 'T00:00:00Z');
+                  d.setUTCDate(d.getUTCDate() + trip.durationDays - 1);
+                  setEnd(d.toISOString().slice(0, 10));
+                } else if (end && end < e.target.value) setEnd(e.target.value);
+              }}
+            />
           </label>
           <label className="grow">
             帰着日
-            <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
+            <input type="date" value={end} min={start || todayLocal()} onChange={(e) => setEnd(e.target.value)} />
           </label>
         </div>
-        {(start !== trip.startDate || end !== trip.endDate) && (
+        {start && end && (start !== trip.startDate || end !== trip.endDate) && (
+          <button className="btn primary" disabled={end < start} onClick={() => onChange(setTripDates(trip, start, end))}>
+            {dated ? '期間を変更（はみ出した予定は「行きたい場所」へ移動）' : '📅 この日程に決める'}
+          </button>
+        )}
+        {dated && (
           <button
-            className="btn primary"
-            disabled={end < start}
-            onClick={() => onChange(setTripDates(trip, start, end))}
+            className="link small"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => {
+              if (!confirm('日程を未定に戻しますか？\nすべての予定は「行きたい場所」へ移動します。')) return;
+              setStart('');
+              setEnd('');
+              onChange(clearTripDates(trip));
+            }}
           >
-            期間を変更（はみ出した予定は「行きたい場所」へ移動）
+            日程を未定に戻す
           </button>
         )}
         <label>

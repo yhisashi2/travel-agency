@@ -27,18 +27,33 @@ export function datesBetween(start: string, end: string): string[] {
   return out;
 }
 
-export function createTrip(title: string, startDate: string, endDate: string, baseCurrency = 'JPY'): Trip {
+/** startDate / endDate を省略すると日程未定の旅行になる（候補だけをためて、後で日程を決める） */
+export function createTrip(
+  title: string,
+  startDate: string | undefined,
+  endDate: string | undefined,
+  baseCurrency = 'JPY',
+  extra: { destination?: string; durationDays?: number } = {},
+): Trip {
+  const dated = !!startDate && !!endDate;
   return {
     id: slugify(title),
     title,
-    startDate,
-    endDate,
+    ...(dated ? { startDate, endDate } : {}),
+    ...(extra.destination ? { destination: extra.destination } : {}),
+    ...(extra.durationDays ? { durationDays: extra.durationDays } : {}),
     baseCurrency,
     rates: {},
     updatedAt: new Date().toISOString(),
-    days: datesBetween(startDate, endDate).map((date) => ({ date, items: [] })),
+    days: dated ? datesBetween(startDate, endDate).map((date) => ({ date, items: [] })) : [],
     ideas: [],
   };
+}
+
+/** 日程を未定に戻す: すべての予定を候補へ移し、日を空にする */
+export function clearTripDates(trip: Trip): Trip {
+  const { startDate: _s, endDate: _e, ...rest } = trip;
+  return touch({ ...rest, days: [], ideas: [...trip.ideas, ...trip.days.flatMap((d) => d.items)] });
 }
 
 /** 期間変更: 既存日の予定は保持し、範囲外になった日の予定は候補へ退避 */

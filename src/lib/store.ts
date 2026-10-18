@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { PlacesFileSchema, type Place, type PlacesFile } from '../types/place';
+import { PlacesFileSchema, type Home, type Place, type PlacesFile } from '../types/place';
 import { parseTrip, type Trip } from '../types/trip';
 import { GitHubClient, GitHubError, loadSettings } from './github';
 import { applyRemoteChoice, mergeById, mergeTrips, type Conflict } from './merge';
@@ -111,6 +111,21 @@ export async function resolveConflict(id: string, conflict: Conflict, useRemote:
 const NO_PLACES: Place[] = [];
 export const usePlaces = () => useStore((s) => s.places?.data.places ?? NO_PLACES);
 
+const homeOf = (s: State) => s.places?.data.home;
+export const useHome = () => useStore(homeOf);
+
+/** 自宅を設定（undefined で解除）。places.json の home として GitHub に同期される */
+export async function setHome(home: Home | undefined) {
+  const rec = state.places;
+  await savePlacesRecord({
+    ...(rec ?? { id: 'places' }),
+    id: 'places',
+    data: { updatedAt: new Date().toISOString(), places: rec?.data.places ?? [], ...(home ? { home } : {}) },
+    dirty: true,
+  });
+  schedulePush();
+}
+
 async function savePlacesRecord(rec: PlacesRecord) {
   await putPlacesRecord(rec);
   set({ places: rec });
@@ -123,7 +138,7 @@ export async function updatePlaces(fn: (places: Place[]) => Place[]) {
   await savePlacesRecord({
     ...(rec ?? { id: 'places' }),
     id: 'places',
-    data: { updatedAt: new Date().toISOString(), places },
+    data: { ...rec?.data, updatedAt: new Date().toISOString(), places },
     dirty: true,
   });
   schedulePush();
@@ -172,7 +187,9 @@ async function syncPlaces(gh: GitHubClient) {
   let conflicts = rec.conflicts ?? [];
   if (file && remote && file.sha !== rec.sha) {
     const m = mergeById(rec.base?.places ?? null, data.places, remote.places, (p) => p.title);
-    data = { updatedAt: new Date().toISOString(), places: m.merged };
+    // 自宅は端末側で変えていなければ remote を採用（変えていれば端末側）
+    const home = JSON.stringify(rec.base?.home) === JSON.stringify(data.home) ? remote.home : data.home;
+    data = { updatedAt: new Date().toISOString(), places: m.merged, ...(home ? { home } : {}) };
     conflicts = [...conflicts.filter((c) => !m.conflicts.some((n) => n.id === c.id)), ...m.conflicts];
   }
   try {

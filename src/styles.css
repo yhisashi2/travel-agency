@@ -221,3 +221,11 @@ div.place-card { cursor: default; display: flex; }
 .claude-link { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); text-decoration: none; }
 .claude-link .grow { display: flex; flex-direction: column; gap: 2px; }
 .claude-link-icon { font-size: 22px; }
+
+/* 日程未定・自宅 */
+.pill.plan { background: var(--surface-2, #f1f5f9); color: var(--muted, #64748b); }
+.check-row { flex-direction: row !important; align-items: center; gap: 8px; }
+.check-row input { width: auto; }
+.card.undated { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.nowrap { white-space: nowrap; }
+.home-pin { width: 30px; height: 30px; display: grid; place-items: center; font-size: 18px; background: #fff; border: 2px solid #0f766e; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,.3); }

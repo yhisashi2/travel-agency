@@ -3,7 +3,80 @@ import SyncBadge from '../components/SyncBadge';
 import { DEFAULT_CLAUDE_LINK, loadClaudeLink, saveClaudeLink } from '../lib/claudeLink';
 import { GitHubClient, loadSettings, saveSettings, type GitHubSettings } from '../lib/github';
 import { navigate } from '../lib/router';
-import { getState, syncAll, useStore } from '../lib/store';
+import { getState, setHome, syncAll, useHome, useStore } from '../lib/store';
+import { PlaceSearch } from '../components/SpotEditor';
+
+/** 自宅の設定。地図の🏠ピン、自宅からの距離、プラン作成（Claude Code 含む）の基準になる */
+function HomeCard() {
+  const home = useHome();
+  const [q, setQ] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+
+  const useCurrent = () => {
+    if (!('geolocation' in navigator)) return setMsg('この端末では現在地を取得できません');
+    setMsg('現在地を取得中…');
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        void setHome({ title: home?.title ?? '自宅', lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) });
+        setMsg('現在地を自宅に設定しました');
+        setEditing(false);
+      },
+      (e) => setMsg(e.code === 1 ? '位置情報の許可が必要です' : '現在地を取得できませんでした'),
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  };
+
+  return (
+    <div className="card form">
+      <h3>🏠 自宅</h3>
+      <p className="muted small">
+        出発・帰着地として、地図のピンや「自宅から○km」の表示、行きたい所の近い順に使います。GitHub に同期されるので、Claude Code も参照できます。
+        番地まで入れる必要はありません（最寄り駅や市区町村でも十分です）。
+      </p>
+      {home && !editing ? (
+        <div className="row between gap">
+          <div className="ellipsis">
+            <strong>{home.title}</strong>
+            <div className="muted small ellipsis">{home.address ?? `${home.lat}, ${home.lng}`}</div>
+          </div>
+          <div className="row gap">
+            <button className="btn sm" onClick={() => setEditing(true)}>
+              変更
+            </button>
+            <button className="btn sm danger" onClick={() => void setHome(undefined)}>
+              解除
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <PlaceSearch
+            value={q}
+            onTitle={setQ}
+            onPick={(p) => {
+              void setHome({ title: home?.title ?? '自宅', lat: p.lat, lng: p.lng, address: p.address });
+              setQ('');
+              setEditing(false);
+              setMsg(null);
+            }}
+          />
+          <div className="row gap">
+            <button className="btn grow" onClick={useCurrent}>
+              ◎ 現在地を自宅にする
+            </button>
+            {editing && (
+              <button className="btn" onClick={() => setEditing(false)}>
+                キャンセル
+              </button>
+            )}
+          </div>
+        </>
+      )}
+      {msg && <p className="small">{msg}</p>}
+    </div>
+  );
+}
 
 export default function Settings() {
   const current = loadSettings();
@@ -105,6 +178,8 @@ export default function Settings() {
             </button>
           </div>
         )}
+
+        <HomeCard />
 
         <div className="card form">
           <h3>Claude Code のリンク</h3>

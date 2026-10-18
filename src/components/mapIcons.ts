@@ -12,6 +12,14 @@ export function numberIcon(label: string | number, opts: { done?: boolean; activ
   });
 }
 
+export const homeIcon = L.divIcon({
+  className: '',
+  html: '<div class="home-pin">🏠</div>',
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+  popupAnchor: [0, -14],
+});
+
 export const meIcon = L.divIcon({
   className: '',
   html: '<div class="me-dot"></div>',

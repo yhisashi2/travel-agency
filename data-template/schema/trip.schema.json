@@ -20,6 +20,13 @@
           "type": "string",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
         },
+        "destination": {
+          "type": "string"
+        },
+        "durationDays": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
         "baseCurrency": {
           "type": "string",
           "minLength": 3,
@@ -36,7 +43,7 @@
         },
         "updatedAt": {
           "type": "string",
-          "default": "2026-10-17T15:13:54.168Z"
+          "default": "2026-10-18T13:07:41.425Z"
         },
         "days": {
           "type": "array",
@@ -244,9 +251,7 @@
       },
       "required": [
         "id",
-        "title",
-        "startDate",
-        "endDate"
+        "title"
       ],
       "additionalProperties": false
     }

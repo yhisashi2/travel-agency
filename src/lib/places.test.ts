@@ -3,7 +3,7 @@ import { sampleTrip } from '../sample';
 import type { Place } from '../types/place';
 import { mergeById } from './merge';
 import { guessArea, recordVisits, suggestPlaces } from './places';
-import { upsertSpot } from './tripOps';
+import { createTrip, upsertSpot } from './tripOps';
 
 const place = (p: Partial<Place> & { id: string; title: string }): Place => ({ category: 'sightseeing', visits: [], ...p });
 
@@ -73,5 +73,20 @@ describe('guessArea', () => {
   it('extracts prefecture or foreign country', () => {
     expect(guessArea('清水寺, 清水, 東山区, 京都市, 京都府, 605-0862, 日本')).toBe('京都府');
     expect(guessArea('Eiffel Tower, Paris, France')).toBe('France');
+  });
+});
+
+describe('suggestPlaces（日程未定）', () => {
+  it('prefers places in the destination, then nearer to home', () => {
+    const trip = createTrip('九州', undefined, undefined, 'JPY', { destination: '熊本' });
+    const home = { lat: 33.59, lng: 130.4 }; // 福岡
+    const list = [
+      place({ id: 'far', title: '桜島', area: '鹿児島県', lat: 31.58, lng: 130.66 }),
+      place({ id: 'aso', title: '阿蘇', area: '熊本県', lat: 32.88, lng: 131.1 }),
+      place({ id: 'near', title: '太宰府', area: '福岡県', lat: 33.52, lng: 130.53 }),
+      place({ id: 'amakusa', title: '天草', area: '熊本県', lat: 32.45, lng: 130.19 }),
+    ];
+    const ids = suggestPlaces(list, trip, home).map((s) => s.place.id);
+    expect(ids).toEqual(['aso', 'amakusa', 'near', 'far']);
   });
 });

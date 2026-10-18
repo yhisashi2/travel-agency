@@ -6,7 +6,35 @@
       "properties": {
         "updatedAt": {
           "type": "string",
-          "default": "2026-10-17T15:13:54.170Z"
+          "default": "2026-10-18T13:07:41.427Z"
+        },
+        "home": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "lng": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "address": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "lat",
+            "lng"
+          ],
+          "additionalProperties": false
         },
         "places": {
           "type": "array",

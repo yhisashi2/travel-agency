@@ -3,7 +3,7 @@ import { sampleTrip } from '../sample';
 import { parseTrip, type Trip } from '../types/trip';
 import { summarizeBudget } from './budget';
 import { applyRemoteChoice, mergeTrips } from './merge';
-import { IDEAS, createTrip, deleteSpot, findSpot, moveSpot, setTripDates, shiftSpot, upsertSpot } from './tripOps';
+import { IDEAS, clearTripDates, createTrip, deleteSpot, findSpot, moveSpot, setTripDates, shiftSpot, upsertSpot } from './tripOps';
 
 const clone = (t: Trip): Trip => JSON.parse(JSON.stringify(t));
 
@@ -33,7 +33,7 @@ describe('tripOps', () => {
 
   it('moves orphaned spots to ideas when shortening the trip', () => {
     const t = sampleTrip();
-    const shorter = setTripDates(t, t.startDate, t.days[1].date);
+    const shorter = setTripDates(t, t.startDate!, t.days[1].date);
     expect(shorter.days).toHaveLength(2);
     expect(shorter.ideas.map((s) => s.id)).toContain('s9');
   });
@@ -121,5 +121,48 @@ describe('transport modes', () => {
     const { routeLine } = await import('./routing');
     const r = await routeLine([33, 131], [33.1, 131.1], 'ferry');
     expect(r).toEqual({ line: [[33, 131], [33.1, 131.1]], routed: false });
+  });
+});
+
+describe('日程未定の旅行', () => {
+  it('creates an undated trip with destination and no days', () => {
+    const t = createTrip('九州', undefined, undefined, 'JPY', { destination: '九州', durationDays: 5 });
+    expect(t.startDate).toBeUndefined();
+    expect(t.days).toEqual([]);
+    expect(parseTrip(JSON.parse(JSON.stringify(t)))).toMatchObject({ destination: '九州', durationDays: 5 });
+  });
+
+  it('keeps ideas when the dates are decided, and moves spots back when cleared', () => {
+    let t = createTrip('九州', undefined, undefined);
+    t = upsertSpot(t, IDEAS, { id: 'a', title: '阿蘇', category: 'sightseeing' });
+    t = setTripDates(t, '2026-11-01', '2026-11-03');
+    expect(t.days).toHaveLength(3);
+    expect(t.ideas.map((s) => s.id)).toEqual(['a']);
+    t = moveSpot(t, 'a', '2026-11-02');
+    const u = clearTripDates(t);
+    expect(u.startDate).toBeUndefined();
+    expect('startDate' in u).toBe(false);
+    expect(u.days).toEqual([]);
+    expect(u.ideas.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('merges when the dates are decided on one side', () => {
+    const base = createTrip('九州', undefined, undefined);
+    base.ideas = [{ id: 'a', title: '阿蘇', category: 'sightseeing' }];
+    const local = moveSpot(setTripDates(clone(base), '2026-11-01', '2026-11-02'), 'a', '2026-11-01');
+    const remote = upsertSpot(clone(base), IDEAS, { id: 'b', title: '別府', category: 'sightseeing' });
+    const { merged, conflicts } = mergeTrips(base, local, remote);
+    expect(conflicts).toEqual([]);
+    expect(merged.startDate).toBe('2026-11-01');
+    expect(merged.days[0].items.map((s) => s.id)).toEqual(['a']);
+    expect(merged.ideas.map((s) => s.id)).toEqual(['b']);
+  });
+
+  it('merges back to undated without leaving undefined keys', () => {
+    const base = createTrip('九州', '2026-11-01', '2026-11-02');
+    const local = clearTripDates(base);
+    const { merged } = mergeTrips(base, local, clone(base));
+    expect('startDate' in merged).toBe(false);
+    expect(merged.days).toEqual([]);
   });
 });

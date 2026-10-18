@@ -91,7 +91,7 @@ export default function TripDetail({ id, tab }: { id: string; tab: string }) {
             }}
           />
         )}
-        {tab === 'map' && activeMapDates.length > 0 && (
+        {tab === 'map' && (activeMapDates.length > 0 || trip.days.length === 0) && (
           <MapView trip={trip} dates={activeMapDates} onDatesChange={setMapDates} onEdit={setEdit} onChange={update} />
         )}
         {tab === 'budget' && <BudgetView trip={trip} onChange={update} />}

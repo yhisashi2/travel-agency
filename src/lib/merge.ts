@@ -42,7 +42,7 @@ export function mergeTrips(base: Trip | null, local: Trip, remote: Trip): MergeR
   const b = base ?? remote; // 基準がない場合は remote 起点（local の差分を全部採用）
 
   // --- トップレベル項目
-  const fields = ['title', 'startDate', 'endDate', 'baseCurrency', 'rates', 'notes'] as const;
+  const fields = ['title', 'startDate', 'endDate', 'destination', 'durationDays', 'baseCurrency', 'rates', 'notes'] as const;
   const top: Partial<Trip> = {};
   for (const f of fields) {
     (top as Record<string, unknown>)[f] = pick3(b[f], local[f], remote[f], () =>
@@ -89,9 +89,11 @@ export function mergeTrips(base: Trip | null, local: Trip, remote: Trip): MergeR
   const db = dayMap(b);
   const dl = dayMap(local);
   const dr = dayMap(remote);
-  const startDate = top.startDate as string;
-  const endDate = top.endDate as string;
-  const dates = [...new Set([...dl.keys(), ...dr.keys()])].filter((d) => d >= startDate && d <= endDate).sort();
+  const startDate = top.startDate;
+  const endDate = top.endDate;
+  // 日程未定（日付なし）の旅行には日がない。予定は下で候補へ回る
+  const dates =
+    startDate && endDate ? [...new Set([...dl.keys(), ...dr.keys()])].filter((d) => d >= startDate && d <= endDate).sort() : [];
 
   const lists = new Map<string, Loc[]>();
   for (const loc of placed.values()) {
@@ -116,7 +118,7 @@ export function mergeTrips(base: Trip | null, local: Trip, remote: Trip): MergeR
     ideas: ordered('ideas'),
     updatedAt: new Date().toISOString(),
   } as Trip;
-  if (merged.notes === undefined) delete merged.notes;
+  for (const f of fields) if (merged[f] === undefined) delete merged[f];
 
   return { merged, conflicts };
 }
