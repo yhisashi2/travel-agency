@@ -3,7 +3,7 @@ import { sampleTrip } from '../sample';
 import { parseTrip, type Trip } from '../types/trip';
 import { summarizeBudget } from './budget';
 import { applyRemoteChoice, mergeTrips } from './merge';
-import { IDEAS, clearTripDates, createTrip, deleteSpot, findSpot, moveSpot, setTripDates, shiftSpot, upsertSpot } from './tripOps';
+import { IDEAS, clearTripDates, createTrip, deleteSpot, findSpot, moveSpot, setTripDates, shiftSpot, shiftVisible, upsertSpot } from './tripOps';
 
 const clone = (t: Trip): Trip => JSON.parse(JSON.stringify(t));
 
@@ -164,5 +164,31 @@ describe('日程未定の旅行', () => {
     const { merged } = mergeTrips(base, local, clone(base));
     expect('startDate' in merged).toBe(false);
     expect(merged.days).toEqual([]);
+  });
+});
+
+describe('shiftVisible（完了した予定を隠しているときの ↑↓）', () => {
+  const mk = () => {
+    let t = createTrip('T', '2026-11-01', '2026-11-01');
+    const d = t.days[0].date;
+    for (const [id, done] of [['a', false], ['x', true], ['b', false], ['c', false]] as const) {
+      t = moveSpot(upsertSpot(t, IDEAS, { id, title: id, category: 'sightseeing', done }), id, d);
+    }
+    return { t, d };
+  };
+  const ids = (t: Trip, d: string) => t.days.find((x) => x.date === d)!.items.map((s) => s.id);
+  const visible = (s: { done?: boolean }) => !s.done;
+
+  it('skips hidden spots when moving down and up', () => {
+    const { t, d } = mk();
+    expect(ids(t, d)).toEqual(['a', 'x', 'b', 'c']);
+    expect(ids(shiftVisible(t, 'a', 1, visible), d)).toEqual(['x', 'b', 'a', 'c']);
+    expect(ids(shiftVisible(t, 'b', -1, visible), d)).toEqual(['b', 'a', 'x', 'c']);
+  });
+
+  it('does nothing at the visible edges', () => {
+    const { t, d } = mk();
+    expect(ids(shiftVisible(t, 'a', -1, visible), d)).toEqual(['a', 'x', 'b', 'c']);
+    expect(ids(shiftVisible(t, 'c', 1, visible), d)).toEqual(['a', 'x', 'b', 'c']);
   });
 });

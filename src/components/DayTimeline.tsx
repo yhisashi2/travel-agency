@@ -10,6 +10,7 @@ import {
   formatDate,
   formatDistance,
   shiftSpot,
+  shiftVisible,
   todayLocal,
   updateDay,
   upsertSpot,
@@ -46,8 +47,45 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPla
     onChange({ ...trip, ideas: [...withLoc, ...rest], updatedAt: new Date().toISOString() });
   };
 
+  const [hideDone, setHideDone] = useState(() => {
+    try {
+      return localStorage.getItem('ta.hideDone') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggleHideDone = () => {
+    setHideDone((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem('ta.hideDone', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const doneTotal =
+    trip.days.reduce((n, d) => n + d.items.filter((s) => s.done).length, 0) +
+    trip.ideas.filter((s) => s.done).length;
+
   return (
     <div className="timeline">
+      {doneTotal > 0 && (
+        <div className="timeline-toolbar">
+          <button
+            type="button"
+            className={`chip sm ${hideDone ? 'on' : ''}`}
+            aria-pressed={hideDone}
+            onClick={toggleHideDone}
+          >
+            {hideDone ? '✓ 完了した予定を非表示中' : '✓ 完了した予定を隠す'}
+            <span className="muted" style={hideDone ? { color: '#fff' } : undefined}>
+              （{doneTotal}件）
+            </span>
+          </button>
+        </div>
+      )}
+
       {undated && (
         <div className="card undated">
           <div>
@@ -88,7 +126,7 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPla
               </div>
             </div>
             {w && weatherAdvice(w) && <div className="advice">☂️ {weatherAdvice(w)}</div>}
-            <SpotList trip={trip} listKey={day.date} items={day.items} onChange={onChange} onEdit={onEdit} />
+            <SpotList trip={trip} listKey={day.date} items={day.items} onChange={onChange} onEdit={onEdit} hideDone={hideDone} />
             <button className="add-btn" onClick={() => onEdit({ listKey: day.date })}>
               ＋ 予定を追加
             </button>
@@ -105,7 +143,7 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPla
             </button>
           )}
         </div>
-        <SpotList trip={trip} listKey={IDEAS} items={trip.ideas} onChange={onChange} onEdit={onEdit} home={home} />
+        <SpotList trip={trip} listKey={IDEAS} items={trip.ideas} onChange={onChange} onEdit={onEdit} home={home} hideDone={hideDone} />
         <div className="add-row">
           <button className="add-btn" onClick={() => onEdit({ listKey: IDEAS })}>
             ＋ 候補を追加
@@ -136,6 +174,7 @@ function SpotList({
   onChange,
   onEdit,
   home,
+  hideDone,
 }: {
   trip: Trip;
   listKey: ListKey;
@@ -144,91 +183,203 @@ function SpotList({
   onEdit: (t: EditTarget) => void;
   /** 指定すると各予定に自宅からの距離を出す（候補リスト用） */
   home?: { lat: number; lng: number };
+  hideDone?: boolean;
 }) {
+  const today = todayLocal();
   const [open, setOpen] = useState<string | null>(null);
+  const [showDoneOverride, setShowDoneOverride] = useState(false);
   const places = usePlaces();
+
+  const doneCount = items.filter((s) => s.done).length;
+  const isFiltering = Boolean(hideDone && !showDoneOverride && doneCount > 0);
+  const visibleItems = isFiltering ? items.filter((s) => !s.done) : items;
+
+  const dayIndex = listKey !== IDEAS ? trip.days.findIndex((d) => d.date === listKey) : -1;
+  const prevDay = dayIndex > 0 ? trip.days[dayIndex - 1] : null;
+  const nextDay = dayIndex >= 0 && dayIndex < trip.days.length - 1 ? trip.days[dayIndex + 1] : null;
+  const targetDay = listKey === IDEAS ? (trip.days.find((d) => d.date === today) ?? trip.days[0] ?? null) : null;
+
   if (items.length === 0) return <p className="muted small pad">予定はまだありません</p>;
+
+  // 全て完了していて非表示中の場合
+  if (visibleItems.length === 0 && doneCount > 0) {
+    return (
+      <div className="all-done-box">
+        <span className="muted small">✓ すべての予定（{doneCount}件）が完了しました 🎉</span>
+        <button type="button" className="link small" onClick={() => setShowDoneOverride(true)}>
+          完了した予定を表示
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <ol className="spots">
-      {items.map((s, i) => {
-        const next = items[i + 1];
-        const dist =
-          next && s.lat != null && s.lng != null && next.lat != null && next.lng != null
-            ? distanceMeters({ lat: s.lat, lng: s.lng }, { lat: next.lat, lng: next.lng })
-            : null;
-        const expanded = open === s.id;
-        // 別の旅行で行ったことがある場所なら再訪マーク
-        const place = s.placeId ? places.find((p) => p.id === s.placeId) : undefined;
-        const before = place?.visits.some((v) => v.tripId !== trip.id);
-        return (
-          <li key={s.id}>
-            <div className={`spot ${s.done ? 'done' : ''}`}>
-              <button
-                className={`check ${s.done ? 'on' : ''}`}
-                aria-label="完了"
-                onClick={() => onChange(upsertSpot(trip, listKey, { ...s, done: !s.done }))}
-              >
-                {s.done ? '✓' : ''}
-              </button>
-              <button className="spot-main" onClick={() => setOpen(expanded ? null : s.id)}>
-                <div className="spot-line">
-                  {s.time && (
-                    <span className="time">
-                      {s.time}
-                      {s.endTime && `–${s.endTime}`}
+    <>
+      {isFiltering && doneCount > 0 && (
+        <div className="hidden-done-banner">
+          <span className="muted small">✓ 完了した予定 {doneCount} 件を非表示中</span>
+          <button type="button" className="link small" onClick={() => setShowDoneOverride(true)}>
+            表示
+          </button>
+        </div>
+      )}
+      {showDoneOverride && doneCount > 0 && hideDone && (
+        <div className="hidden-done-banner">
+          <span className="muted small">✓ 完了した予定を表示中</span>
+          <button type="button" className="link small" onClick={() => setShowDoneOverride(false)}>
+            隠す
+          </button>
+        </div>
+      )}
+      <ol className="spots">
+        {visibleItems.map((s, i) => {
+          // 区間・ナビは隠した予定も含めた本当の前後で決める（隠れた予定を飛ばした区間を作らない）
+          const at = items.indexOf(s);
+          const prev = items[at - 1];
+          const realNext = items[at + 1];
+          const next = realNext && (!isFiltering || !realNext.done) ? realNext : undefined;
+          const dist =
+            next && s.lat != null && s.lng != null && next.lat != null && next.lng != null
+              ? distanceMeters({ lat: s.lat, lng: s.lng }, { lat: next.lat, lng: next.lng })
+              : null;
+          const expanded = open === s.id;
+          // 別の旅行で行ったことがある場所なら再訪マーク
+          const place = s.placeId ? places.find((p) => p.id === s.placeId) : undefined;
+          const before = place?.visits.some((v) => v.tripId !== trip.id);
+          return (
+            <li key={s.id}>
+              <div className={`spot ${s.done ? 'done' : ''}`}>
+                <button
+                  className={`check ${s.done ? 'on' : ''}`}
+                  aria-label="完了"
+                  onClick={() => onChange(upsertSpot(trip, listKey, { ...s, done: !s.done }))}
+                >
+                  {s.done ? '✓' : ''}
+                </button>
+                <button className="spot-main" onClick={() => setOpen(expanded ? null : s.id)}>
+                  <div className="spot-line">
+                    {s.time && (
+                      <span className="time">
+                        {s.time}
+                        {s.endTime && `–${s.endTime}`}
+                      </span>
+                    )}
+                    <span className="spot-title">
+                      {CATEGORY_ICON[s.category]} {s.title}
                     </span>
+                    {home && s.lat != null && s.lng != null && (
+                      <span className="muted small nowrap">🏠 {formatDistance(distanceMeters(home, { lat: s.lat, lng: s.lng }))}</span>
+                    )}
+                    {before && (
+                      <span className="revisit" title="以前にも行ったことがある場所">
+                        再訪 <Stars rating={place!.rating} />
+                      </span>
+                    )}
+                  </div>
+                  {(s.cost || s.bookingRef || s.memo) && (
+                    <div className="muted small spot-meta">
+                      {s.cost ? formatMoney(s.cost, s.currency ?? trip.baseCurrency) : ''}
+                      {s.bookingRef ? ` 予約#${s.bookingRef}` : ''}
+                      {s.memo ? ` ${s.memo}` : ''}
+                    </div>
                   )}
-                  <span className="spot-title">
-                    {CATEGORY_ICON[s.category]} {s.title}
-                  </span>
-                  {home && s.lat != null && s.lng != null && (
-                    <span className="muted small nowrap">🏠 {formatDistance(distanceMeters(home, { lat: s.lat, lng: s.lng }))}</span>
+                </button>
+              </div>
+              {expanded && (
+                <div className="spot-actions">
+                  <button className="btn sm" onClick={() => onEdit({ listKey, spotId: s.id })}>
+                    ✏️ 編集
+                  </button>
+                  <button
+                    className="btn sm"
+                    disabled={i === 0}
+                    onClick={() => onChange(isFiltering ? shiftVisible(trip, s.id, -1, (x) => !x.done) : shiftSpot(trip, s.id, -1))}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    className="btn sm"
+                    disabled={i === visibleItems.length - 1}
+                    onClick={() => onChange(isFiltering ? shiftVisible(trip, s.id, 1, (x) => !x.done) : shiftSpot(trip, s.id, 1))}
+                  >
+                    ↓
+                  </button>
+
+                  {listKey !== IDEAS ? (
+                    <>
+                      {prevDay && (
+                        <button
+                          type="button"
+                          className="btn sm"
+                          title={`${dayIndex}日目へ戻す`}
+                          onClick={() => {
+                            onChange(upsertSpot(trip, prevDay.date, s));
+                            setOpen(null);
+                          }}
+                        >
+                          ← 前日へ
+                        </button>
+                      )}
+                      {nextDay && (
+                        <button
+                          type="button"
+                          className="btn sm"
+                          title={`${dayIndex + 2}日目へ送る`}
+                          onClick={() => {
+                            onChange(upsertSpot(trip, nextDay.date, s));
+                            setOpen(null);
+                          }}
+                        >
+                          → 翌日へ
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn sm"
+                        title="日程未定の候補リストに移す"
+                        onClick={() => {
+                          onChange(upsertSpot(trip, IDEAS, s));
+                          setOpen(null);
+                        }}
+                      >
+                        💡 候補へ
+                      </button>
+                    </>
+                  ) : (
+                    targetDay && (
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => {
+                          onChange(upsertSpot(trip, targetDay.date, s));
+                          setOpen(null);
+                        }}
+                      >
+                        🗓️ {targetDay.date === today ? '今日の日程へ' : `${trip.days.indexOf(targetDay) + 1}日目へ`}
+                      </button>
+                    )
                   )}
-                  {before && (
-                    <span className="revisit" title="以前にも行ったことがある場所">
-                      再訪 <Stars rating={place!.rating} />
-                    </span>
+
+                  {(s.lat != null || s.address) && (
+                    <a className="btn sm primary" href={googleMapsDirections(s, prev?.transportToNext, prev?.highway?.use === false)} target="_blank" rel="noreferrer">
+                      🧭 ナビ
+                    </a>
+                  )}
+                  {s.url && (
+                    <a className="btn sm" href={s.url} target="_blank" rel="noreferrer">
+                      🔗
+                    </a>
                   )}
                 </div>
-                {(s.cost || s.bookingRef || s.memo) && (
-                  <div className="muted small spot-meta">
-                    {s.cost ? formatMoney(s.cost, s.currency ?? trip.baseCurrency) : ''}
-                    {s.bookingRef ? ` 予約#${s.bookingRef}` : ''}
-                    {s.memo ? ` ${s.memo}` : ''}
-                  </div>
-                )}
-              </button>
-            </div>
-            {expanded && (
-              <div className="spot-actions">
-                <button className="btn sm" onClick={() => onEdit({ listKey, spotId: s.id })}>
-                  ✏️ 編集
-                </button>
-                <button className="btn sm" disabled={i === 0} onClick={() => onChange(shiftSpot(trip, s.id, -1))}>
-                  ↑
-                </button>
-                <button className="btn sm" disabled={i === items.length - 1} onClick={() => onChange(shiftSpot(trip, s.id, 1))}>
-                  ↓
-                </button>
-                {(s.lat != null || s.address) && (
-                  <a className="btn sm primary" href={googleMapsDirections(s, items[i - 1]?.transportToNext, items[i - 1]?.highway?.use === false)} target="_blank" rel="noreferrer">
-                    🧭 ナビ
-                  </a>
-                )}
-                {s.url && (
-                  <a className="btn sm" href={s.url} target="_blank" rel="noreferrer">
-                    🔗
-                  </a>
-                )}
-              </div>
-            )}
-            {next && listKey !== IDEAS && (
-              <Leg trip={trip} listKey={listKey} from={s} to={next} dist={dist} onChange={onChange} />
-            )}
-          </li>
-        );
-      })}
-    </ol>
+              )}
+              {next && listKey !== IDEAS && (
+                <Leg trip={trip} listKey={listKey} from={s} to={next} dist={dist} onChange={onChange} />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </>
   );
 }
 

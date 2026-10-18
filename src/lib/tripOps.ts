@@ -141,6 +141,21 @@ export function shiftSpot(trip: Trip, id: string, delta: -1 | 1): Trip {
   return moveSpot(trip, id, found.key, found.index + delta);
 }
 
+/**
+ * 表示中の予定（visible が true）だけを見て 1 つ上/下へ動かす。
+ * 完了した予定を隠しているとき、隠れた予定と入れ替わって見た目が変わらない、を防ぐ
+ */
+export function shiftVisible(trip: Trip, id: string, delta: -1 | 1, visible: (s: Spot) => boolean): Trip {
+  const found = findSpot(trip, id);
+  if (!found) return trip;
+  const list = getList(trip, found.key);
+  const shown = list.filter((s) => s.id === id || visible(s));
+  const neighbor = shown[shown.findIndex((s) => s.id === id) + delta];
+  if (!neighbor) return trip;
+  // 取り除いた後の並びで、上へは隣の位置に、下へは隣の直後に入る。どちらも元の並びでの隣の位置になる
+  return moveSpot(trip, id, found.key, list.indexOf(neighbor));
+}
+
 export function updateDay(trip: Trip, date: string, patch: Partial<Day>): Trip {
   return touch({ ...trip, days: trip.days.map((d) => (d.date === date ? { ...d, ...patch } : d)) });
 }

@@ -239,3 +239,8 @@ div.place-card { cursor: default; display: flex; }
 .leg .link { margin-left: 6px; }
 .hw-section { margin-left: 1.2em; }
 .hw-box .segmented button { white-space: nowrap; }
+
+/* 完了予定の折りたたみ表示 */
+.timeline-toolbar { display: flex; justify-content: flex-end; padding: 0 4px; margin-bottom: -4px; }
+.hidden-done-banner { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--surface); border-bottom: 1px dashed var(--border); }
+.all-done-box { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 12px; text-align: center; }
