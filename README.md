@@ -22,7 +22,7 @@ API キーは不要です（OSM / Open-Meteo / Nominatim / 公開 OSRM を利用
 
 ### 2. データ用リポジトリを作る（非公開推奨）
 1. 非公開リポジトリ `travel-agency-data` を作成
-2. [`data-template/`](data-template) の中身（`CLAUDE.md`, `places.json`, `schema/`, `trips/`）をそのリポジトリのルートにコピーして push
+2. [`data-template/`](data-template) の中身（`CLAUDE.md`, `GEMINI.md`, `places.json`, `schema/`, `trips/`）をそのリポジトリのルートにコピーして push
 3. GitHub → Settings → Developer settings → **Fine-grained personal access tokens** で、
    対象を `travel-agency-data` のみ、権限 **Contents: Read and write** のトークンを発行
 
@@ -30,10 +30,10 @@ API キーは不要です（OSM / Open-Meteo / Nominatim / 公開 OSRM を利用
 1. 公開した URL を開き、⚙️ 設定でオーナー名・リポジトリ名・トークンを入力して「接続」
 2. iPhone は Safari の「共有 → ホーム画面に追加」、Android は Chrome の「アプリをインストール」
 
-### Claude Code から編集する
-`travel-agency-data` を Claude Code（web 版なら claude.ai/code で GitHub リポジトリを選択）で開き、
-「2 日目の午後に浅草寺を追加して」のように頼みます。`CLAUDE.md` に形式と編集ルールが書いてあるので、
-Claude はスキーマに沿って `trips/*.json` を編集・コミットします。アプリは次に開いた時（またはフォーカス時）に取り込みます。
+### Claude Code / Antigravity から編集する
+`travel-agency-data` を Claude Code や Antigravity で開き、
+「2 日目の午後に浅草寺を追加して」のように頼みます。`CLAUDE.md` / `GEMINI.md` に形式と編集ルールが定義されているため、
+AI はスキーマに沿って `trips/*.json` や `places.json` を編集・コミットします。アプリは次に開いた時（またはフォーカス時）に取り込みます。
 
 ## 開発
 
@@ -59,6 +59,7 @@ npm run build
 ### 構成
 | パス | 内容 |
 | --- | --- |
+| `CLAUDE.md` / `GEMINI.md` | Claude Code（メイン設計）/ Antigravity（サブ設計）開発ガイド |
 | `src/types/trip.ts` | データ形式（zod スキーマ） |
 | `src/lib/tripOps.ts` | 予定の追加・移動・期間変更など |
 | `src/lib/store.ts` | 状態管理と GitHub 同期 |
