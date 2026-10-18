@@ -12,8 +12,12 @@ const MODE: Record<Transport, string> = {
 };
 
 /** Google マップの経路案内 URL（スマホでは Google マップアプリが開く） */
-export function googleMapsDirections(to: Spot, mode?: Transport): string {
+export function googleMapsDirections(to: Spot, mode?: Transport, avoidHighways = false): string {
   const dest = to.lat != null && to.lng != null ? `${to.lat},${to.lng}` : (to.address ?? to.title);
+  if (avoidHighways) {
+    // URL API（api=1）には「高速を避ける」指定が無いため、従来形式の dirflg（d=車, h=高速を避ける, t=有料道路を避ける）を使う
+    return `https://www.google.com/maps?${new URLSearchParams({ daddr: dest, dirflg: 'dht' })}`;
+  }
   const p = new URLSearchParams({ api: '1', destination: dest, travelmode: MODE[mode ?? 'walk'] });
   return `https://www.google.com/maps/dir/?${p}`;
 }

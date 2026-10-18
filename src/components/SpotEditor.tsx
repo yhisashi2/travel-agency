@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { reverseGeocode, searchPlaces, type Place } from '../lib/geocode';
+import { VEHICLE_LABEL, estimateLeg, formatMinutes, isRoadMode, toHighway, vehicleOf } from '../lib/highway';
 import { placeFromSpot } from '../lib/places';
 import { updatePlaces, usePlaces } from '../lib/store';
 import { IDEAS, deleteSpot, findSpot, formatDate, newId, spotsWithLocation, upsertSpot, type ListKey } from '../lib/tripOps';
@@ -156,6 +157,10 @@ export default function SpotEditor({ trip, target, onClose, onChange }: Props) {
               ))}
             </select>
           </label>
+
+          {isRoadMode(spot.transportToNext) && (
+            <HighwayFields trip={trip} listKey={listKey} spot={spot} onChange={(highway) => setSpot((s) => ({ ...s, highway }))} />
+          )}
 
           <div className="row gap">
             <label className="grow">
@@ -352,4 +357,112 @@ function Recenter({ value }: { value: [number, number] | null }) {
     if (value) map.panTo(value);
   }, [map, value?.[0], value?.[1]]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
+}
+
+/** 次の場所までの高速道路（使う/使わない、区間、料金、時間、距離）と概算 */
+function HighwayFields({
+  trip,
+  listKey,
+  spot,
+  onChange,
+}: {
+  trip: Trip;
+  listKey: ListKey;
+  spot: Spot;
+  onChange: (h: Spot['highway']) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const hw = spot.highway;
+  const mode = spot.transportToNext!;
+  const list = listKey === IDEAS ? trip.ideas : (trip.days.find((d) => d.date === listKey)?.items ?? []);
+  const idx = list.findIndex((s) => s.id === spot.id);
+  const next = idx >= 0 ? list[idx + 1] : undefined;
+  const canEstimate = spot.lat != null && spot.lng != null && next?.lat != null && next.lng != null;
+  // 手で直した項目は概算ではなくなる
+  const edit = (patch: Partial<NonNullable<Spot['highway']>>) => onChange({ use: hw?.use ?? true, ...hw, ...patch, estimated: false });
+  const num = (v: string) => (v === '' ? undefined : Math.max(0, Number(v)));
+
+  const estimate = async (use: boolean) => {
+    if (!canEstimate) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const e = await estimateLeg({ lat: spot.lat!, lng: spot.lng! }, { lat: next!.lat!, lng: next!.lng! }, mode, use);
+      onChange(toHighway(e, use));
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="hw-box">
+      <div className="row between">
+        <strong className="small">🛣️ 高速道路</strong>
+        <div className="segmented sm" role="radiogroup" aria-label="高速道路">
+          {(
+            [
+              [undefined, '未定'],
+              [true, '使う'],
+              [false, '使わない'],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={label}
+              type="button"
+              role="radio"
+              aria-checked={hw?.use === v}
+              className={hw?.use === v ? 'on' : ''}
+              onClick={() => (v === undefined ? onChange(undefined) : canEstimate ? void estimate(v) : edit({ use: v }))}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {hw && (
+        <>
+          {hw.use && (
+            <label>
+              区間
+              <input value={hw.section ?? ''} placeholder="例: 吹田IC→小倉東IC" onChange={(e) => edit({ section: e.target.value || undefined })} />
+            </label>
+          )}
+          <div className="row gap">
+            {hw.use && (
+              <label className="grow">
+                料金（円）
+                <input type="number" inputMode="numeric" min={0} value={hw.toll ?? ''} onChange={(e) => edit({ toll: num(e.target.value) })} />
+              </label>
+            )}
+            <label className="grow">
+              時間（分）
+              <input type="number" inputMode="numeric" min={0} value={hw.minutes ?? ''} onChange={(e) => edit({ minutes: num(e.target.value) })} />
+            </label>
+            <label className="grow">
+              距離（km）
+              <input type="number" inputMode="decimal" min={0} value={hw.km ?? ''} onChange={(e) => edit({ km: num(e.target.value) })} />
+            </label>
+          </div>
+        </>
+      )}
+      <div className="row gap between">
+        <span className="muted small">
+          {hw?.estimated
+            ? `概算（${hw.use ? `${VEHICLE_LABEL[vehicleOf(mode)]}・ETC` : '下道'}）${hw.minutes != null ? ` 約${formatMinutes(hw.minutes)}` : ''}`
+            : canEstimate
+              ? '次の予定までの時間・距離・料金を計算できます'
+              : '次の予定に位置がないため概算できません'}
+        </span>
+        {canEstimate && (
+          <button type="button" className="btn sm" disabled={busy} onClick={() => void estimate(hw?.use ?? true)}>
+            {busy ? '計算中…' : '概算を計算'}
+          </button>
+        )}
+      </div>
+      {err && <p className="warn-text small">{err}</p>}
+    </div>
+  );
 }

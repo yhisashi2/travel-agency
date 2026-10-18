@@ -10,6 +10,8 @@ export interface BudgetSummary {
   byCurrency: Record<string, number>;
   /** レート未設定で換算できなかった通貨 */
   missingRates: string[];
+  /** 合計のうち高速料金（baseCurrency 換算） */
+  tolls: number;
 }
 
 export function summarizeBudget(trip: Trip): BudgetSummary {
@@ -31,13 +33,30 @@ export function summarizeBudget(trip: Trip): BudgetSummary {
     return s.cost * rate;
   };
 
+  // 高速料金は日本円で入力する（基準通貨が円以外ならレートで換算）
+  const toll = (s: Spot): number => {
+    const yen = s.highway?.use ? (s.highway.toll ?? 0) : 0;
+    if (!yen) return 0;
+    if (base === 'JPY') return yen;
+    const rate = trip.rates.JPY;
+    if (!rate) {
+      missing.add('JPY');
+      return 0;
+    }
+    return yen * rate;
+  };
+
   let total = 0;
+  let tolls = 0;
   const byDay = trip.days.map((d) => {
     let amount = 0;
     for (const s of d.items) {
       const v = convert(s);
-      amount += v;
+      const t = toll(s);
+      amount += v + t;
       byCategory[s.category] += v;
+      byCategory.transport += t;
+      tolls += t;
     }
     total += amount;
     return { date: d.date, amount };
@@ -51,7 +70,7 @@ export function summarizeBudget(trip: Trip): BudgetSummary {
     return rate ? sum + s.cost * rate : sum;
   }, 0);
 
-  return { total, byCategory, byDay, ideas, byCurrency, missingRates: [...missing] };
+  return { total, byCategory, byDay, ideas, byCurrency, missingRates: [...missing], tolls };
 }
 
 export function formatMoney(amount: number, currency: string): string {

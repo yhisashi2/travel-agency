@@ -43,7 +43,7 @@
         },
         "updatedAt": {
           "type": "string",
-          "default": "2026-10-18T13:07:41.425Z"
+          "default": "2026-10-18T13:38:53.121Z"
         },
         "days": {
           "type": "array",
@@ -113,6 +113,36 @@
                         "ferry",
                         "flight"
                       ]
+                    },
+                    "highway": {
+                      "type": "object",
+                      "properties": {
+                        "use": {
+                          "type": "boolean"
+                        },
+                        "section": {
+                          "type": "string"
+                        },
+                        "toll": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "minutes": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "km": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "estimated": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "use"
+                      ],
+                      "additionalProperties": false
                     },
                     "cost": {
                       "type": "number",
@@ -211,6 +241,36 @@
                   "ferry",
                   "flight"
                 ]
+              },
+              "highway": {
+                "type": "object",
+                "properties": {
+                  "use": {
+                    "type": "boolean"
+                  },
+                  "section": {
+                    "type": "string"
+                  },
+                  "toll": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minutes": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "km": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "estimated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "use"
+                ],
+                "additionalProperties": false
               },
               "cost": {
                 "type": "number",

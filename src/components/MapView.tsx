@@ -30,6 +30,8 @@ interface MapSpot {
   /** その日の中での番号（1 始まり） */
   order: number;
   prevMode?: Transport;
+  /** 前の場所から「高速を使わない」で来る */
+  prevAvoid?: boolean;
 }
 interface Leg {
   key: string;
@@ -74,7 +76,7 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
             color: dayColor(prev.dayIndex),
           });
         }
-        spots.push({ spot, date: d.date, dayIndex, order: i + 1, prevMode: prev?.spot.transportToNext });
+        spots.push({ spot, date: d.date, dayIndex, order: i + 1, prevMode: prev?.spot.transportToNext, prevAvoid: prev?.spot.highway?.use === false });
         prev = { spot, dayIndex };
       });
     });
@@ -213,6 +215,7 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
                   spot={s.spot}
                   label={multi ? `${s.dayIndex + 1}日目 ${formatDate(s.date)}` : undefined}
                   prevMode={s.prevMode}
+                  prevAvoid={s.prevAvoid}
                   onEdit={() => onEdit({ listKey: s.date, spotId: s.spot.id })}
                   onToggleDone={() => onChange(upsertSpot(trip, s.date, { ...s.spot, done: !s.spot.done }))}
                 />
@@ -261,7 +264,7 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
               </strong>
               {nextDist != null && <span className="muted small"> ・現在地から {formatDistance(nextDist)}</span>}
             </div>
-            <a className="btn primary sm" href={googleMapsDirections(next.spot, next.prevMode)} target="_blank" rel="noreferrer">
+            <a className="btn primary sm" href={googleMapsDirections(next.spot, next.prevMode, next.prevAvoid)} target="_blank" rel="noreferrer">
               🧭 ナビ
             </a>
           </div>
@@ -283,12 +286,14 @@ function SpotPopup({
   spot,
   label,
   prevMode,
+  prevAvoid,
   onEdit,
   onToggleDone,
 }: {
   spot: Spot;
   label?: string;
   prevMode?: Spot['transportToNext'];
+  prevAvoid?: boolean;
   onEdit: () => void;
   onToggleDone?: () => void;
 }) {
@@ -300,7 +305,7 @@ function SpotPopup({
       {(label || spot.time) && <div className="muted small">{[label, spot.time].filter(Boolean).join(' ')}</div>}
       {spot.memo && <div className="small">{spot.memo}</div>}
       <div className="row gap" style={{ marginTop: 6 }}>
-        <a className="btn sm primary" href={googleMapsDirections(spot, prevMode)} target="_blank" rel="noreferrer">
+        <a className="btn sm primary" href={googleMapsDirections(spot, prevMode, prevAvoid)} target="_blank" rel="noreferrer">
           ナビ
         </a>
         <button className="btn sm" onClick={onEdit}>

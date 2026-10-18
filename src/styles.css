@@ -229,3 +229,13 @@ div.place-card { cursor: default; display: flex; }
 .card.undated { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .nowrap { white-space: nowrap; }
 .home-pin { width: 30px; height: 30px; display: grid; place-items: center; font-size: 18px; background: #fff; border: 2px solid #0f766e; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+
+/* 高速道路 */
+.hw-box { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); }
+.segmented.sm button { padding: 4px 10px; font-size: 13px; }
+.hw-tag { display: inline-block; margin: 0 4px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--border); font-size: 11px; }
+.hw-tag.on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.leg .toll { color: var(--text); font-weight: 600; }
+.leg .link { margin-left: 6px; }
+.hw-section { margin-left: 1.2em; }
+.hw-box .segmented button { white-space: nowrap; }

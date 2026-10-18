@@ -23,6 +23,7 @@ export default function BudgetView({ trip, onChange }: { trip: Trip; onChange: (
       <div className="card total">
         <div className="muted small">合計（日程に入っている予定）</div>
         <div className="big">{formatMoney(b.total, base)}</div>
+        {b.tolls > 0 && <div className="muted small">うち 🛣️ 高速料金 {formatMoney(b.tolls, base)}（「移動」に含む）</div>}
         {b.ideas > 0 && <div className="muted small">候補を全部入れると +{formatMoney(b.ideas, base)}</div>}
         {b.missingRates.length > 0 && (
           <div className="warn-text small">⚠️ {b.missingRates.join(', ')} の換算レートが未設定のため合計に含まれていません</div>

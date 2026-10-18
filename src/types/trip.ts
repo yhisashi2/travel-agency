@@ -30,6 +30,22 @@ export const TRANSPORT_LABEL: Record<Transport, string> = {
 const time = z.string().regex(/^\d{2}:\d{2}$/, 'HH:MM 形式');
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 形式');
 
+/** 次の場所までの道路移動（車・バイク・バス）の高速道路利用と概算 */
+export const HighwaySchema = z.object({
+  /** 高速道路を使うか */
+  use: z.boolean(),
+  /** 区間（例: 吹田IC→福岡IC、中国自動車道→九州自動車道） */
+  section: z.string().optional(),
+  /** 高速料金（円） */
+  toll: z.number().nonnegative().optional(),
+  /** 所要時間（分） */
+  minutes: z.number().nonnegative().optional(),
+  /** 距離（km） */
+  km: z.number().nonnegative().optional(),
+  /** 概算値（アプリの計算や Claude Code の見積もり）。実際の料金は要確認 */
+  estimated: z.boolean().optional(),
+});
+
 export const SpotSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -40,6 +56,8 @@ export const SpotSchema = z.object({
   lng: z.number().min(-180).max(180).optional(),
   address: z.string().optional(),
   transportToNext: z.enum(TRANSPORTS).optional(),
+  /** 次の場所までの高速道路（transportToNext が car / bike / bus のとき） */
+  highway: HighwaySchema.optional(),
   cost: z.number().nonnegative().optional(),
   currency: z.string().length(3).optional(),
   bookingRef: z.string().optional(),
@@ -79,6 +97,7 @@ export const TripSchema = z.object({
 export type Category = (typeof CATEGORIES)[number];
 export type Transport = (typeof TRANSPORTS)[number];
 export type Spot = z.infer<typeof SpotSchema>;
+export type Highway = z.infer<typeof HighwaySchema>;
 export type Day = z.infer<typeof DaySchema>;
 export type Trip = z.infer<typeof TripSchema>;
 

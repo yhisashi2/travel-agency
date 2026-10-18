@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '../lib/budget';
+import { estimateLeg, formatMinutes, isRoadMode, toHighway } from '../lib/highway';
 import { googleMapsDirections } from '../lib/navigation';
 import { navigate } from '../lib/router';
-import { useHome, usePlaces } from '../lib/store';
+import { getState, useHome, usePlaces } from '../lib/store';
 import {
   IDEAS,
   distanceMeters,
@@ -210,7 +211,7 @@ function SpotList({
                   ↓
                 </button>
                 {(s.lat != null || s.address) && (
-                  <a className="btn sm primary" href={googleMapsDirections(s, items[i - 1]?.transportToNext)} target="_blank" rel="noreferrer">
+                  <a className="btn sm primary" href={googleMapsDirections(s, items[i - 1]?.transportToNext, items[i - 1]?.highway?.use === false)} target="_blank" rel="noreferrer">
                     🧭 ナビ
                   </a>
                 )}
@@ -222,14 +223,76 @@ function SpotList({
               </div>
             )}
             {next && listKey !== IDEAS && (
-              <div className="leg muted small">
-                ↓ {s.transportToNext ? TRANSPORT_LABEL[s.transportToNext] : ''}
-                {dist != null && ` ${formatDistance(dist)}`}
-              </div>
+              <Leg trip={trip} listKey={listKey} from={s} to={next} dist={dist} onChange={onChange} />
             )}
           </li>
         );
       })}
     </ol>
+  );
+}
+
+/** 予定と予定の間の移動。車・バイク・バスは高速道路の利用と所要時間・料金の概算を出せる */
+function Leg({
+  trip,
+  listKey,
+  from,
+  to,
+  dist,
+  onChange,
+}: {
+  trip: Trip;
+  listKey: ListKey;
+  from: Spot;
+  to: Spot;
+  dist: number | null;
+  onChange: (t: Trip) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const mode = from.transportToNext;
+  const hw = from.highway;
+  const road = isRoadMode(mode);
+  const canEstimate = road && from.lat != null && from.lng != null && to.lat != null && to.lng != null;
+
+  const estimate = async () => {
+    if (!canEstimate) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const use = hw?.use ?? true;
+      const e = await estimateLeg({ lat: from.lat!, lng: from.lng! }, { lat: to.lat!, lng: to.lng! }, mode!, use);
+      // 計算中に別の編集が入っても消さないよう、最新の旅行に反映する
+      const latest = getState().records[trip.id]?.trip ?? trip;
+      const cur = latest.days.flatMap((d) => d.items).find((x) => x.id === from.id) ?? from;
+      onChange(upsertSpot(latest, listKey, { ...cur, highway: toHighway(e, use) }));
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="leg muted small">
+      ↓ {mode ? TRANSPORT_LABEL[mode] : ''}
+      {road && hw && <span className={hw.use ? 'hw-tag on' : 'hw-tag'}>{hw.use ? '🛣️ 高速' : '下道'}</span>}
+      {hw?.minutes != null && ` 約${formatMinutes(hw.minutes)}`}
+      {hw?.km != null ? ` ${hw.km} km` : dist != null && ` ${formatDistance(dist)}`}
+      {hw?.use && hw.toll != null && (
+        <strong className="toll">
+          {' '}
+          {formatMoney(hw.toll, 'JPY')}
+          {hw.estimated && <span className="muted">（概算）</span>}
+        </strong>
+      )}
+      {canEstimate && (
+        <button className="link small" disabled={busy} onClick={() => void estimate()}>
+          {busy ? '計算中…' : hw?.minutes != null ? '↻' : '🛣️ 概算'}
+        </button>
+      )}
+      {hw?.use && hw.section && <div className="hw-section">{hw.section}</div>}
+      {err && <div className="warn-text">{err}</div>}
+    </div>
   );
 }
