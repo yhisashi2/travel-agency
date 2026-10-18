@@ -19,6 +19,8 @@ interface Props {
   onDatesChange: (d: string[]) => void;
   onEdit: (t: EditTarget) => void;
   onChange: (t: Trip) => void;
+  /** 日程タブでその予定を開く */
+  onShowInPlan: (spotId: string) => void;
 }
 
 type LatLng = [number, number];
@@ -43,7 +45,7 @@ interface Leg {
 
 const legKey = (l: Leg) => `${l.from}|${l.to}|${l.mode ?? ''}`;
 
-export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }: Props) {
+export default function MapView({ trip, dates, onDatesChange, onEdit, onChange, onShowInPlan }: Props) {
   // 日程未定（日が無い）なら候補を最初から表示
   const [showIdeas, setShowIdeas] = useState(trip.days.length === 0);
   const home = useHome();
@@ -217,6 +219,7 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
                   prevMode={s.prevMode}
                   prevAvoid={s.prevAvoid}
                   onEdit={() => onEdit({ listKey: s.date, spotId: s.spot.id })}
+                  onShowInPlan={() => onShowInPlan(s.spot.id)}
                   onToggleDone={() => onChange(upsertSpot(trip, s.date, { ...s.spot, done: !s.spot.done }))}
                 />
               </Popup>
@@ -226,7 +229,7 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
           {ideas.map((s) => (
             <Marker key={s.id} position={[s.lat, s.lng]} icon={numberIcon('💡', { color: '#94a3b8' })}>
               <Popup>
-                <SpotPopup spot={s} onEdit={() => onEdit({ listKey: IDEAS, spotId: s.id })} />
+                <SpotPopup spot={s} onEdit={() => onEdit({ listKey: IDEAS, spotId: s.id })} onShowInPlan={() => onShowInPlan(s.id)} />
               </Popup>
             </Marker>
           ))}
@@ -264,9 +267,14 @@ export default function MapView({ trip, dates, onDatesChange, onEdit, onChange }
               </strong>
               {nextDist != null && <span className="muted small"> ・現在地から {formatDistance(nextDist)}</span>}
             </div>
-            <a className="btn primary sm" href={googleMapsDirections(next.spot, next.prevMode, next.prevAvoid)} target="_blank" rel="noreferrer">
-              🧭 ナビ
-            </a>
+            <div className="row gap">
+              <button className="btn sm" aria-label="日程で見る" onClick={() => onShowInPlan(next.spot.id)}>
+                🗓️
+              </button>
+              <a className="btn primary sm" href={googleMapsDirections(next.spot, next.prevMode, next.prevAvoid)} target="_blank" rel="noreferrer">
+                🧭 ナビ
+              </a>
+            </div>
           </div>
         ) : (
           <div className="muted small">
@@ -289,6 +297,7 @@ function SpotPopup({
   prevAvoid,
   onEdit,
   onToggleDone,
+  onShowInPlan,
 }: {
   spot: Spot;
   label?: string;
@@ -296,6 +305,7 @@ function SpotPopup({
   prevAvoid?: boolean;
   onEdit: () => void;
   onToggleDone?: () => void;
+  onShowInPlan?: () => void;
 }) {
   return (
     <div className="popup">
@@ -314,6 +324,11 @@ function SpotPopup({
         {onToggleDone && (
           <button className="btn sm" onClick={onToggleDone}>
             {spot.done ? '未完了' : '完了'}
+          </button>
+        )}
+        {onShowInPlan && (
+          <button className="btn sm" onClick={onShowInPlan}>
+            🗓️ 日程で見る
           </button>
         )}
       </div>

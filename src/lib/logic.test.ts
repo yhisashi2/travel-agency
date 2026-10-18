@@ -3,7 +3,7 @@ import { sampleTrip } from '../sample';
 import { parseTrip, type Trip } from '../types/trip';
 import { summarizeBudget } from './budget';
 import { applyRemoteChoice, mergeTrips } from './merge';
-import { IDEAS, clearTripDates, createTrip, deleteSpot, findSpot, moveSpot, setTripDates, shiftSpot, shiftVisible, upsertSpot } from './tripOps';
+import { IDEAS, addMinutes, clearTripDates, createTrip, deleteSpot, findSpot, moveSpot, setTripDates, shiftSpot, shiftVisible, upsertSpot } from './tripOps';
 
 const clone = (t: Trip): Trip => JSON.parse(JSON.stringify(t));
 
@@ -190,5 +190,23 @@ describe('shiftVisible（完了した予定を隠しているときの ↑↓）
     const { t, d } = mk();
     expect(ids(shiftVisible(t, 'a', -1, visible), d)).toEqual(['a', 'x', 'b', 'c']);
     expect(ids(shiftVisible(t, 'c', 1, visible), d)).toEqual(['a', 'x', 'b', 'c']);
+  });
+});
+
+describe('addMinutes', () => {
+  it('adds minutes and wraps past midnight', () => {
+    expect(addMinutes('10:00', 60)).toBe('11:00');
+    expect(addMinutes('10:45', 90)).toBe('12:15');
+    expect(addMinutes('23:30', 60)).toBe('00:30');
+  });
+});
+
+describe('budgetLimit のマージ', () => {
+  it('takes the side that changed it, and removes it when cleared', () => {
+    const base = createTrip('T', '2026-11-01', '2026-11-01');
+    const local = { ...clone(base), budgetLimit: 100000 };
+    expect(mergeTrips(base, local, clone(base)).merged.budgetLimit).toBe(100000);
+    const { merged } = mergeTrips(local, clone(base), local);
+    expect('budgetLimit' in merged).toBe(false);
   });
 });

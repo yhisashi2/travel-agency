@@ -87,6 +87,8 @@ export const TripSchema = z.object({
   baseCurrency: z.string().length(3).default('JPY'),
   /** 1 単位の外貨が baseCurrency でいくらか（例: { USD: 150 }） */
   rates: z.record(z.number().positive()).default({}),
+  /** 目標予算（baseCurrency）。予算タブで残額を表示する */
+  budgetLimit: z.number().positive().optional(),
   updatedAt: z.string().default(() => new Date().toISOString()),
   days: z.array(DaySchema).default([]),
   /** 日程未定の行きたい場所 */

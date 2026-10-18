@@ -94,6 +94,13 @@ export function findSpot(trip: Trip, id: string): { key: ListKey; index: number;
   return null;
 }
 
+/** HH:MM に分を足す（24 時を超えたら 0 時から数え直す。例: 23:30 + 60 → 00:30） */
+export function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = (((h * 60 + m + minutes) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
 /** 時刻付きの予定を時刻順に並べる（時刻なしは相対位置を維持） */
 export function sortByTime(items: Spot[]): Spot[] {
   if (!items.some((s) => s.time)) return items;

@@ -244,3 +244,18 @@ div.place-card { cursor: default; display: flex; }
 .timeline-toolbar { display: flex; justify-content: flex-end; padding: 0 4px; margin-bottom: -4px; }
 .hidden-done-banner { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--surface); border-bottom: 1px dashed var(--border); }
 .all-done-box { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 12px; text-align: center; }
+
+/* 位置未設定・滞在時間チップ・地図ポップアップ */
+.no-loc { display: inline-block; padding: 0 6px; border: 1px dashed var(--warn); border-radius: 8px; color: var(--warn); font-size: 11px; white-space: nowrap; cursor: pointer; }
+.duration-chips { margin-top: -4px; }
+.duration-chips .chip:disabled { opacity: 0.4; cursor: default; }
+.popup .row { flex-wrap: wrap; }
+
+/* 目標予算メーター */
+.err-text { color: var(--err); }
+.budget-meter { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.budget-meter input { min-width: 0; }
+.meter { height: 10px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.meter > div { height: 100%; border-radius: 999px; background: var(--ok); transition: width 0.2s; }
+.meter.near > div { background: var(--warn); }
+.meter.over > div { background: var(--err); }

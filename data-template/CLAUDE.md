@@ -18,6 +18,7 @@
 - `lat` / `lng`: 地図とルートに必要。分かる場合は必ず入れる（小数 4〜6 桁）
 - `transportToNext`: 次の予定への移動手段 `walk` | `car` | `bike`（バイク） | `train` | `bus` | `ferry`（フェリー） | `flight`。フェリーに乗る港の Spot には `ferry` を入れる
 - `highway`: 次の予定までの高速道路（`transportToNext` が `car` / `bike` / `bus` のとき）。`{ "use": true/false, "section": "吹田IC→小倉東IC", "toll": 円, "minutes": 所要分, "km": 距離, "estimated": true }`。`toll` は日本円で、予算の「移動」に自動で合算される。`use: false` の区間はナビで高速・有料道路を避ける
+- `budgetLimit`（任意）: 旅行全体の目標予算（`baseCurrency` の数値）。アプリの予算タブで残額を表示する。ユーザーが予算を言ったら入れ、プラン作成時はこの範囲に収まるよう考える
 - `cost` は数値、`currency` は ISO 4217（省略時は `baseCurrency`）。外貨は `rates` に「1 単位 = 何 baseCurrency」を入れる
 - `done`: 旅行中にアプリで付ける完了フラグ。理由なく変更しない
 - `placeId`: `places.json` の場所と同じものなら、その `id` を入れる

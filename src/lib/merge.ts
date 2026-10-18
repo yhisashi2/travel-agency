@@ -42,7 +42,7 @@ export function mergeTrips(base: Trip | null, local: Trip, remote: Trip): MergeR
   const b = base ?? remote; // 基準がない場合は remote 起点（local の差分を全部採用）
 
   // --- トップレベル項目
-  const fields = ['title', 'startDate', 'endDate', 'destination', 'durationDays', 'baseCurrency', 'rates', 'notes'] as const;
+  const fields = ['title', 'startDate', 'endDate', 'destination', 'durationDays', 'baseCurrency', 'rates', 'budgetLimit', 'notes'] as const;
   const top: Partial<Trip> = {};
   for (const f of fields) {
     (top as Record<string, unknown>)[f] = pick3(b[f], local[f], remote[f], () =>

@@ -23,6 +23,7 @@ export default function BudgetView({ trip, onChange }: { trip: Trip; onChange: (
       <div className="card total">
         <div className="muted small">合計（日程に入っている予定）</div>
         <div className="big">{formatMoney(b.total, base)}</div>
+        <BudgetMeter trip={trip} total={b.total} onChange={onChange} />
         {b.tolls > 0 && <div className="muted small">うち 🛣️ 高速料金 {formatMoney(b.tolls, base)}（「移動」に含む）</div>}
         {b.ideas > 0 && <div className="muted small">候補を全部入れると +{formatMoney(b.ideas, base)}</div>}
         {b.missingRates.length > 0 && (
@@ -97,6 +98,49 @@ export default function BudgetView({ trip, onChange }: { trip: Trip; onChange: (
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** 目標予算の入力と残額メーター（80% 未満は緑、100% までは橙、超えたら赤） */
+function BudgetMeter({ trip, total, onChange }: { trip: Trip; total: number; onChange: (t: Trip) => void }) {
+  const base = trip.baseCurrency;
+  const limit = trip.budgetLimit;
+  const ratio = limit ? total / limit : 0;
+  const level = ratio > 1 ? 'over' : ratio >= 0.8 ? 'near' : 'ok';
+  return (
+    <div className="budget-meter">
+      <label className="row gap small">
+        <span className="muted">目標予算</span>
+        <input
+          className="grow"
+          type="number"
+          inputMode="numeric"
+          min={0}
+          placeholder="未設定"
+          defaultValue={limit ?? ''}
+          onBlur={(e) => {
+            const n = Number(e.target.value);
+            const next = e.target.value !== '' && n > 0 ? n : undefined;
+            if (next === limit) return;
+            const { budgetLimit: _old, ...rest } = trip;
+            onChange({ ...rest, ...(next ? { budgetLimit: next } : {}), updatedAt: new Date().toISOString() });
+          }}
+        />
+        <span className="muted">{base}</span>
+      </label>
+      {limit != null && (
+        <>
+          <div className={`meter ${level}`} role="meter" aria-valuemin={0} aria-valuemax={limit} aria-valuenow={total} aria-label="予算の使用率">
+            <div style={{ width: `${Math.min(100, ratio * 100)}%` }} />
+          </div>
+          <div className={`small ${level === 'over' ? 'err-text' : level === 'near' ? 'warn-text' : 'muted'}`}>
+            {level === 'over'
+              ? `⚠️ ${formatMoney(total - limit, base)} オーバー`
+              : `残り ${formatMoney(limit - total, base)}（${Math.round(ratio * 100)}% 使用）`}
+          </div>
+        </>
+      )}
     </div>
   );
 }

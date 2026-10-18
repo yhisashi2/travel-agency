@@ -28,6 +28,8 @@ export default function TripDetail({ id, tab }: { id: string; tab: string }) {
   const [edit, setEdit] = useState<EditTarget | null>(null);
   const [mapDates, setMapDates] = useState<string[] | null>(null);
   const [picker, setPicker] = useState(false);
+  /** 地図から「日程で見る」で開く予定 */
+  const [focusSpot, setFocusSpot] = useState<string | null>(null);
   /** 評価を聞く場所 ID の列 */
   const [askQueue, setAskQueue] = useState<string[]>([]);
 
@@ -85,6 +87,7 @@ export default function TripDetail({ id, tab }: { id: string; tab: string }) {
             onChange={update}
             onEdit={setEdit}
             onPickPlaces={() => setPicker(true)}
+            focusId={focusSpot}
             onShowMap={(date) => {
               setMapDates([date]);
               navigate('trip', id, 'map');
@@ -92,7 +95,17 @@ export default function TripDetail({ id, tab }: { id: string; tab: string }) {
           />
         )}
         {tab === 'map' && (activeMapDates.length > 0 || trip.days.length === 0) && (
-          <MapView trip={trip} dates={activeMapDates} onDatesChange={setMapDates} onEdit={setEdit} onChange={update} />
+          <MapView
+            trip={trip}
+            dates={activeMapDates}
+            onDatesChange={setMapDates}
+            onEdit={setEdit}
+            onChange={update}
+            onShowInPlan={(spotId) => {
+              setFocusSpot(spotId);
+              navigate('trip', id, 'plan');
+            }}
+          />
         )}
         {tab === 'budget' && <BudgetView trip={trip} onChange={update} />}
         {tab === 'info' && <TripInfo rec={rec} onChange={update} />}
@@ -100,7 +113,14 @@ export default function TripDetail({ id, tab }: { id: string; tab: string }) {
 
       <nav className="tabbar">
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => navigate('trip', id, t.id)}>
+          <button
+            key={t.id}
+            className={tab === t.id ? 'active' : ''}
+            onClick={() => {
+              setFocusSpot(null);
+              navigate('trip', id, t.id);
+            }}
+          >
             <span>{t.icon}</span>
             {t.label}
           </button>

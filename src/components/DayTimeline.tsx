@@ -11,6 +11,7 @@ import {
   formatDistance,
   shiftSpot,
   shiftVisible,
+  sortByTime,
   todayLocal,
   updateDay,
   upsertSpot,
@@ -28,14 +29,18 @@ interface Props {
   onEdit: (t: EditTarget) => void;
   onPickPlaces: () => void;
   onShowMap: (date: string) => void;
+  /** 地図などから「日程で見る」で開いた予定。開いた状態で画面中央にスクロールする */
+  focusId?: string | null;
 }
 
-export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPlaces, onShowMap }: Props) {
+export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPlaces, onShowMap, focusId }: Props) {
   const today = todayLocal();
   const todayRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    todayRef.current?.scrollIntoView({ block: 'start' });
-  }, []);
+    const el = focusId ? document.getElementById(`spot-${focusId}`) : null;
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    else todayRef.current?.scrollIntoView({ block: 'start' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const home = useHome();
   const undated = trip.days.length === 0;
@@ -103,6 +108,9 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPla
       {trip.days.map((day, i) => {
         const w = weather[day.date];
         const isToday = day.date === today;
+        // 時刻付きが 2 件以上あり、時刻順になっていない日だけ「時刻順」を出す
+        const sorted = sortByTime(day.items);
+        const unsorted = day.items.filter((s) => s.time).length >= 2 && sorted.some((s, k) => s !== day.items[k]);
         return (
           <section key={day.date} className={`day ${isToday ? 'today' : ''}`} ref={isToday ? todayRef : undefined}>
             <div className="day-head">
@@ -120,13 +128,20 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPla
               </div>
               <div className="day-side">
                 {w ? <WeatherChip w={w} /> : <span className="muted small">天気: 予報期間外</span>}
-                <button className="link small" onClick={() => onShowMap(day.date)}>
-                  地図で見る
-                </button>
+                <div className="row gap">
+                  {unsorted && (
+                    <button className="link small" onClick={() => onChange(updateDay(trip, day.date, { items: sorted }))}>
+                      ⏰ 時刻順
+                    </button>
+                  )}
+                  <button className="link small" onClick={() => onShowMap(day.date)}>
+                    地図で見る
+                  </button>
+                </div>
               </div>
             </div>
             {w && weatherAdvice(w) && <div className="advice">☂️ {weatherAdvice(w)}</div>}
-            <SpotList trip={trip} listKey={day.date} items={day.items} onChange={onChange} onEdit={onEdit} hideDone={hideDone} />
+            <SpotList trip={trip} listKey={day.date} items={day.items} onChange={onChange} onEdit={onEdit} hideDone={hideDone} focusId={focusId} />
             <button className="add-btn" onClick={() => onEdit({ listKey: day.date })}>
               ＋ 予定を追加
             </button>
@@ -143,7 +158,7 @@ export default function DayTimeline({ trip, weather, onChange, onEdit, onPickPla
             </button>
           )}
         </div>
-        <SpotList trip={trip} listKey={IDEAS} items={trip.ideas} onChange={onChange} onEdit={onEdit} home={home} hideDone={hideDone} />
+        <SpotList trip={trip} listKey={IDEAS} items={trip.ideas} onChange={onChange} onEdit={onEdit} home={home} hideDone={hideDone} focusId={focusId} />
         <div className="add-row">
           <button className="add-btn" onClick={() => onEdit({ listKey: IDEAS })}>
             ＋ 候補を追加
@@ -175,6 +190,7 @@ function SpotList({
   onEdit,
   home,
   hideDone,
+  focusId,
 }: {
   trip: Trip;
   listKey: ListKey;
@@ -184,10 +200,13 @@ function SpotList({
   /** 指定すると各予定に自宅からの距離を出す（候補リスト用） */
   home?: { lat: number; lng: number };
   hideDone?: boolean;
+  focusId?: string | null;
 }) {
   const today = todayLocal();
-  const [open, setOpen] = useState<string | null>(null);
-  const [showDoneOverride, setShowDoneOverride] = useState(false);
+  const focused = focusId ? items.find((s) => s.id === focusId) : undefined;
+  const [open, setOpen] = useState<string | null>(focused ? focused.id : null);
+  // ジャンプ先が隠れた完了予定なら表示する
+  const [showDoneOverride, setShowDoneOverride] = useState(!!focused?.done);
   const places = usePlaces();
 
   const doneCount = items.filter((s) => s.done).length;
@@ -247,7 +266,7 @@ function SpotList({
           const place = s.placeId ? places.find((p) => p.id === s.placeId) : undefined;
           const before = place?.visits.some((v) => v.tripId !== trip.id);
           return (
-            <li key={s.id}>
+            <li key={s.id} id={`spot-${s.id}`}>
               <div className={`spot ${s.done ? 'done' : ''}`}>
                 <button
                   className={`check ${s.done ? 'on' : ''}`}
@@ -269,6 +288,26 @@ function SpotList({
                     </span>
                     {home && s.lat != null && s.lng != null && (
                       <span className="muted small nowrap">🏠 {formatDistance(distanceMeters(home, { lat: s.lat, lng: s.lng }))}</span>
+                    )}
+                    {(s.lat == null || s.lng == null) && (
+                      <span
+                        className="no-loc"
+                        role="button"
+                        tabIndex={0}
+                        title="位置を設定すると地図に表示されます"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit({ listKey, spotId: s.id });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key !== 'Enter' && e.key !== ' ') return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onEdit({ listKey, spotId: s.id });
+                        }}
+                      >
+                        📍 位置未設定
+                      </span>
                     )}
                     {before && (
                       <span className="revisit" title="以前にも行ったことがある場所">

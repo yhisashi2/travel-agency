@@ -41,9 +41,13 @@
           },
           "default": {}
         },
+        "budgetLimit": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
         "updatedAt": {
           "type": "string",
-          "default": "2026-10-18T13:38:53.121Z"
+          "default": "2026-10-18T17:35:41.540Z"
         },
         "days": {
           "type": "array",

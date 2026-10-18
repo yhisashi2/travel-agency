@@ -4,7 +4,7 @@ import { reverseGeocode, searchPlaces, type Place } from '../lib/geocode';
 import { VEHICLE_LABEL, estimateLeg, formatMinutes, isRoadMode, toHighway, vehicleOf } from '../lib/highway';
 import { placeFromSpot } from '../lib/places';
 import { updatePlaces, usePlaces } from '../lib/store';
-import { IDEAS, deleteSpot, findSpot, formatDate, newId, spotsWithLocation, upsertSpot, type ListKey } from '../lib/tripOps';
+import { IDEAS, addMinutes, deleteSpot, findSpot, formatDate, newId, spotsWithLocation, upsertSpot, type ListKey } from '../lib/tripOps';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL, TRANSPORTS, TRANSPORT_LABEL, type Spot, type Trip } from '../types/trip';
 import { TILE_ATTR, TILE_URL, numberIcon } from './mapIcons';
 
@@ -104,6 +104,29 @@ export default function SpotEditor({ trip, target, onClose, onChange }: Props) {
               終了
               <input type="time" value={spot.endTime ?? ''} onChange={(e) => set('endTime', e.target.value)} />
             </label>
+          </div>
+          <div className="chips duration-chips" role="group" aria-label="滞在時間から終了時刻を入れる">
+            {(
+              [
+                [30, '+30分'],
+                [60, '+1時間'],
+                [90, '+1.5時間'],
+                [120, '+2時間'],
+              ] as const
+            ).map(([min, label]) => (
+              <button
+                key={min}
+                type="button"
+                className="chip sm"
+                disabled={!spot.time}
+                onClick={() => spot.time && set('endTime', addMinutes(spot.time, min))}
+              >
+                {label}
+              </button>
+            ))}
+            <button type="button" className="chip sm" disabled={!spot.endTime} onClick={() => set('endTime', undefined)}>
+              クリア
+            </button>
           </div>
 
           <div className="loc-box">

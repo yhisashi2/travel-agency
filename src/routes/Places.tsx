@@ -11,9 +11,12 @@ import { navigate } from '../lib/router';
 import { resolvePlaceConflict, useHome, usePlaces, useStore } from '../lib/store';
 import { distanceMeters, formatDate, formatDistance } from '../lib/tripOps';
 import { RATING_LABEL, isVisited, type Place } from '../types/place';
-import { CATEGORY_ICON } from '../types/trip';
+import { CATEGORIES, CATEGORY_ICON, CATEGORY_LABEL, type Category } from '../types/trip';
 
 type Filter = 'todo' | 'done' | 'all';
+/** 評価の絞り込み: 3 = ★★★ のみ、2 = ★★ 以上 */
+type RatingFilter = '' | '3' | '2+';
+const matchesRating = (rating: number | undefined, f: RatingFilter) => !f || (f === '3' ? rating === 3 : (rating ?? 0) >= 2);
 const NO_CONFLICTS: Conflict[] = [];
 
 export default function Places() {
@@ -23,6 +26,10 @@ export default function Places() {
   const [view, setView] = useState<'list' | 'map'>('list');
   const [q, setQ] = useState('');
   const [area, setArea] = useState('');
+  const [cat, setCat] = useState<Category | ''>('');
+  const [ratingFilter, setRatingFilter] = useState<RatingFilter>('');
+  // 評価は行った場所にしか無いので「未訪問」タブでは絞り込まない
+  const rf: RatingFilter = filter === 'todo' ? '' : ratingFilter;
   const [edit, setEdit] = useState<{ id?: string } | null>(null);
   const home = useHome();
   const [nearFirst, setNearFirst] = useState(false);
@@ -35,6 +42,8 @@ export default function Places() {
     (p) =>
       (filter === 'all' || (filter === 'todo' ? !isVisited(p) : isVisited(p))) &&
       (!area || p.area === area) &&
+      (!cat || p.category === cat) &&
+      matchesRating(p.rating, rf) &&
       (!q || [p.title, p.area, p.memo, p.address].some((x) => x?.toLowerCase().includes(q.toLowerCase()))),
   );
   const groups = useMemo(() => {
@@ -88,6 +97,23 @@ export default function Places() {
             <button className={`btn sm ${nearFirst ? 'primary' : ''}`} aria-pressed={nearFirst} onClick={() => setNearFirst((v) => !v)}>
               🏠 近い順
             </button>
+          )}
+        </div>
+        <div className="row gap">
+          <select className="grow" value={cat} onChange={(e) => setCat(e.target.value as Category | '')} aria-label="カテゴリ">
+            <option value="">全カテゴリ</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_ICON[c]} {CATEGORY_LABEL[c]}
+              </option>
+            ))}
+          </select>
+          {filter !== 'todo' && (
+            <select className="grow" value={ratingFilter} onChange={(e) => setRatingFilter(e.target.value as RatingFilter)} aria-label="評価">
+              <option value="">全評価</option>
+              <option value="3">★★★ のみ</option>
+              <option value="2+">★★ 以上</option>
+            </select>
           )}
           <button className="btn sm" onClick={() => setView((v) => (v === 'list' ? 'map' : 'list'))}>
             {view === 'list' ? '🗺️ 地図' : '☰ 一覧'}
