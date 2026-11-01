@@ -1,10 +1,13 @@
 /** Nominatim（OpenStreetMap）による地名検索。利用規約に従い 1 秒 1 リクエストまで */
+import { decodePlusCode, parsePlusCodeInput, recoverPlusCode } from './pluscode';
 
 export interface Place {
   name: string;
   address: string;
   lat: number;
   lng: number;
+  /** Plus Code で指定したときのコード */
+  plusCode?: string;
 }
 
 let last = 0;
@@ -41,4 +44,27 @@ export async function reverseGeocode(lat: number, lng: number): Promise<Place | 
   const p = await res.json();
   if (!p?.display_name) return null;
   return { name: p.name || p.display_name.split(',')[0], address: p.display_name, lat, lng };
+}
+
+/**
+ * 入力に Plus Code が含まれていれば位置にする（含まれなければ null）。
+ * 短いコードは添えられた地名（例 `MP2R+XX 京都市`）、無ければ near を基準にする
+ */
+export async function lookupPlusCode(text: string, near?: { lat: number; lng: number }): Promise<Place | null> {
+  const parsed = parsePlusCodeInput(text);
+  if (!parsed) return null;
+  let code = parsed.code;
+  if (!parsed.full) {
+    let ref = near;
+    if (parsed.locality) {
+      const [hit] = await searchPlaces(parsed.locality, near);
+      if (!hit) throw new Error(`「${parsed.locality}」が見つかりませんでした`);
+      ref = hit;
+    }
+    if (!ref) throw new Error('短い Plus Code は地名と一緒に入力してください（例: MP2R+XX 京都市）');
+    code = recoverPlusCode(code, ref.lat, ref.lng);
+  }
+  const { lat, lng } = decodePlusCode(code);
+  const r = await reverseGeocode(lat, lng).catch(() => null);
+  return { name: r?.name ?? code, address: r?.address ?? code, lat, lng, plusCode: code };
 }

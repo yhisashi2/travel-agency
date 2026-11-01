@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { reverseGeocode } from '../lib/geocode';
 import { guessArea } from '../lib/places';
+import { encodePlusCode } from '../lib/pluscode';
 import { updatePlaces, usePlaces } from '../lib/store';
 import { newId, todayLocal } from '../lib/tripOps';
 import { RATING_LABEL, type Place, type Rating } from '../types/place';
@@ -23,6 +24,28 @@ export function RatingPicker({ value, onChange }: { value?: Rating; onChange: (r
           <Stars rating={r} /> {RATING_LABEL[r]}
         </button>
       ))}
+    </div>
+  );
+}
+
+function PlusCodeRow({ lat, lng }: { lat: number; lng: number }) {
+  const code = encodePlusCode(lat, lng);
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="row between" style={{ marginTop: 6 }}>
+      <span className="muted small">➕ Plus Code: {code}</span>
+      <button
+        type="button"
+        className="link small"
+        onClick={() =>
+          void navigator.clipboard?.writeText(code).then(
+            () => setCopied(true),
+            () => {},
+          )
+        }
+      >
+        {copied ? 'コピーしました' : 'コピー'}
+      </button>
     </div>
   );
 }
@@ -95,6 +118,7 @@ export default function PlaceEditor({ placeId, onClose }: { placeId?: string; on
                 {showMap ? '閉じる' : '地図で指定'}
               </button>
             </div>
+            {place.lat != null && place.lng != null && <PlusCodeRow key={`${place.lat},${place.lng}`} lat={place.lat} lng={place.lng} />}
             {showMap && (
               <PickMap
                 center={place.lat != null && place.lng != null ? [place.lat, place.lng] : near ? [near.lat, near.lng] : [35.68, 139.76]}
