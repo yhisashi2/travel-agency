@@ -12,6 +12,8 @@ export interface BudgetSummary {
   missingRates: string[];
   /** 合計のうち高速料金（baseCurrency 換算） */
   tolls: number;
+  /** 日程未定の旅行で、候補をすべて入れた場合の仮の合計になっている */
+  provisional: boolean;
 }
 
 export function summarizeBudget(trip: Trip): BudgetSummary {
@@ -48,9 +50,9 @@ export function summarizeBudget(trip: Trip): BudgetSummary {
 
   let total = 0;
   let tolls = 0;
-  const byDay = trip.days.map((d) => {
+  const sum = (items: Spot[]) => {
     let amount = 0;
-    for (const s of d.items) {
+    for (const s of items) {
       const v = convert(s);
       const t = toll(s);
       amount += v + t;
@@ -59,10 +61,14 @@ export function summarizeBudget(trip: Trip): BudgetSummary {
       tolls += t;
     }
     total += amount;
-    return { date: d.date, amount };
-  });
-  // 候補は合計に含めず参考値として別集計（通貨集計にも含めない）
-  const ideas = trip.ideas.reduce((sum, s) => {
+    return amount;
+  };
+  const byDay = trip.days.map((d) => ({ date: d.date, amount: sum(d.items) }));
+  // 日程未定なら候補が計画そのものなので、候補の合計を仮の予算にする
+  const provisional = !trip.startDate;
+  if (provisional) sum(trip.ideas);
+  // 日程があれば候補は合計に含めず参考値として別集計（通貨集計にも含めない）
+  const ideas = provisional ? 0 : trip.ideas.reduce((sum, s) => {
     if (!s.cost) return sum;
     const cur = s.currency ?? base;
     if (cur === base) return sum + s.cost;
@@ -70,7 +76,7 @@ export function summarizeBudget(trip: Trip): BudgetSummary {
     return rate ? sum + s.cost * rate : sum;
   }, 0);
 
-  return { total, byCategory, byDay, ideas, byCurrency, missingRates: [...missing], tolls };
+  return { total, byCategory, byDay, ideas, byCurrency, missingRates: [...missing], tolls, provisional };
 }
 
 export function formatMoney(amount: number, currency: string): string {

@@ -50,6 +50,23 @@ describe('budget', () => {
     b = summarizeBudget(t);
     expect(b.total).toBe(500 + 1800 + 14000 + 800 + 1500);
     expect(b.byCategory.lodging).toBe(14000);
+    expect(b.provisional).toBe(false);
+  });
+
+  it('uses the ideas as a provisional budget for an undated trip', () => {
+    let t = createTrip('九州', undefined, undefined, 'JPY', { destination: '九州', durationDays: 3 });
+    t = upsertSpot(t, IDEAS, { id: 'a', title: '宿', category: 'lodging', cost: 12000 });
+    t = upsertSpot(t, IDEAS, { id: 'b', title: '移動', category: 'transport', cost: 3000, transportToNext: 'car', highway: { use: true, toll: 2500 } });
+    const b = summarizeBudget(t);
+    expect(b.provisional).toBe(true);
+    expect(b.total).toBe(12000 + 3000 + 2500);
+    expect(b.byCategory.transport).toBe(5500);
+    expect(b.tolls).toBe(2500);
+    expect(b.ideas).toBe(0);
+    expect(b.byDay).toEqual([]);
+    // 日程が決まったら、日に入れた予定だけが合計になる
+    const dated = summarizeBudget(moveSpot(setTripDates(t, '2026-12-01', '2026-12-03'), 'a', '2026-12-01'));
+    expect(dated).toMatchObject({ provisional: false, total: 12000, ideas: 3000 });
   });
 });
 
