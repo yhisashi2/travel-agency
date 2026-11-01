@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { reverseGeocode, searchPlaces, type Place } from '../lib/geocode';
+import { lookupPlusCode, reverseGeocode, searchPlaces, type Place } from '../lib/geocode';
 import { VEHICLE_LABEL, estimateLeg, formatMinutes, isRoadMode, toHighway, vehicleOf } from '../lib/highway';
 import { placeFromSpot } from '../lib/places';
 import { updatePlaces, usePlaces } from '../lib/store';
@@ -291,7 +291,8 @@ export function PlaceSearch({
     setBusy(true);
     setErr(null);
     try {
-      const r = await searchPlaces(q.trim(), near);
+      const plus = await lookupPlusCode(q, near);
+      const r = plus ? [plus] : await searchPlaces(q.trim(), near);
       setResults(r);
       if (!r.length) setErr('見つかりませんでした');
     } catch (e) {
@@ -309,7 +310,7 @@ export function PlaceSearch({
           <input
             className="grow"
             value={q}
-            placeholder="例: 清水寺"
+            placeholder="例: 清水寺、Plus Code（MP2R+XX 京都市）"
             autoFocus={autoFocus}
             onChange={(e) => onTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -332,12 +333,14 @@ export function PlaceSearch({
               <button
                 type="button"
                 onClick={() => {
+                  if (p.plusCode) onTitle(''); // 入力欄の Plus Code ではなく、その場所の名前を使う
                   onPick(p);
                   setResults([]);
                 }}
               >
                 <strong>{p.name}</strong>
                 <div className="muted small ellipsis">{p.address}</div>
+                {p.plusCode && <div className="muted small">➕ {p.plusCode}</div>}
               </button>
             </li>
           ))}
