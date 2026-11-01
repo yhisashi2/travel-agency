@@ -42,6 +42,8 @@ describe('Plus Code', () => {
     expect(parsePlusCodeInput('MP2R+XX 京都市')).toEqual({ code: 'MP2R+XX', locality: '京都市', full: false });
     expect(parsePlusCodeInput('mp2r+xx, Kyoto, Japan')).toEqual({ code: 'MP2R+XX', locality: 'Kyoto, Japan', full: false });
     expect(parsePlusCodeInput('8Q6QMP2R+XX')).toEqual({ code: '8Q6QMP2R+XX', locality: '', full: true });
+    expect(parsePlusCodeInput('FVC2+RM 串本町、和歌山県')).toEqual({ code: 'FVC2+RM', locality: '串本町、和歌山県', full: false });
+    expect(parsePlusCodeInput('ＦＶＣ２＋ＲＭ　串本町')).toEqual({ code: 'FVC2+RM', locality: '串本町', full: false });
     expect(parsePlusCodeInput('清水寺')).toBeNull();
     expect(parsePlusCodeInput('C++ 勉強会')).toBeNull();
   });
@@ -68,5 +70,20 @@ describe('lookupPlusCode', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     expect((await lookupPlusCode('9G8F+6X', { lat: 47.4, lng: 8.6 }))?.plusCode).toBe('8FVC9G8F+6X');
     await expect(lookupPlusCode('9G8F+6X')).rejects.toThrow('地名と一緒に');
+  });
+
+  it('recovers a short code near the searched locality', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url.includes('/search')
+          ? new Response(JSON.stringify([{ name: '串本町', display_name: '串本町, 東牟婁郡, 和歌山県, 日本', lat: '33.4857631', lon: '135.7869892' }]))
+          : new Response(JSON.stringify({ name: '樫野', display_name: '樫野, 串本町, 東牟婁郡, 和歌山県, 日本' })),
+      ),
+    );
+    const r = await lookupPlusCode('FVC2+RM 串本町、和歌山県', { lat: 35.0, lng: 135.7 });
+    expect(r).toMatchObject({ name: '樫野', plusCode: '8Q5QFVC2+RM' });
+    expect(r!.lat).toBeCloseTo(33.4721, 4);
+    expect(r!.lng).toBeCloseTo(135.8517, 4);
   });
 });

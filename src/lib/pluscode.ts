@@ -128,7 +128,9 @@ const TOKEN = /(?:^|[\s,、，])([23456789CFGHJMPQRVWX0]{2,8}\+[23456789CFGHJMPQ
  * 入力文から Plus Code を取り出す。`MP2R+XX 京都市` → { code: 'MP2R+XX', locality: '京都市' }
  * Plus Code が含まれなければ null
  */
-export function parsePlusCodeInput(text: string): { code: string; locality: string; full: boolean } | null {
+export function parsePlusCodeInput(input: string): { code: string; locality: string; full: boolean } | null {
+  // 日本語入力の全角（＋、英数字、空白）も受け付ける
+  const text = input.normalize('NFKC');
   const m = TOKEN.exec(` ${text.trim()} `);
   if (!m || !isValidPlusCode(m[1])) return null;
   const code = m[1].toUpperCase();
