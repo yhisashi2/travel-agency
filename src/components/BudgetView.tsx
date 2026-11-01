@@ -21,8 +21,14 @@ export default function BudgetView({ trip, onChange }: { trip: Trip; onChange: (
   return (
     <div className="stack">
       <div className="card total">
-        <div className="muted small">合計（日程に入っている予定）</div>
+        <div className="muted small">{b.provisional ? '仮の合計（日程未定のため、候補をすべて入れた場合）' : '合計（日程に入っている予定）'}</div>
         <div className="big">{formatMoney(b.total, base)}</div>
+        {b.provisional && !!trip.durationDays && b.total > 0 && (
+          <div className="muted small">
+            1 日あたり 約{formatMoney(b.total / trip.durationDays, base)}（目安 {trip.durationDays} 日間）
+          </div>
+        )}
+        {b.provisional && b.total === 0 && <div className="muted small">候補に費用を入れると、仮の予算が出ます</div>}
         <BudgetMeter trip={trip} total={b.total} onChange={onChange} />
         {b.tolls > 0 && <div className="muted small">うち 🛣️ 高速料金 {formatMoney(b.tolls, base)}（「移動」に含む）</div>}
         {b.ideas > 0 && <div className="muted small">候補を全部入れると +{formatMoney(b.ideas, base)}</div>}
@@ -46,21 +52,23 @@ export default function BudgetView({ trip, onChange }: { trip: Trip; onChange: (
         ))}
       </div>
 
-      <div className="card">
-        <h3>日別</h3>
-        <table className="table">
-          <tbody>
-            {b.byDay.map((d, i) => (
-              <tr key={d.date}>
-                <td>
-                  Day {i + 1} <span className="muted">{formatDate(d.date)}</span>
-                </td>
-                <td className="num">{formatMoney(d.amount, base)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {!b.provisional && (
+        <div className="card">
+          <h3>日別</h3>
+          <table className="table">
+            <tbody>
+              {b.byDay.map((d, i) => (
+                <tr key={d.date}>
+                  <td>
+                    Day {i + 1} <span className="muted">{formatDate(d.date)}</span>
+                  </td>
+                  <td className="num">{formatMoney(d.amount, base)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="card">
         <h3>通貨と換算レート</h3>
